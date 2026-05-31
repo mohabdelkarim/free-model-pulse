@@ -5,16 +5,20 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
-      prompt_ids:
-        description: 'Prompt IDs to use (space separated, optional)'
+      benchmark_reason:
+        description: 'Benchmark reason'
+        type: choice
+        options:
+          - manual
+          - scheduled
+          - new_model_detected
+        default: 'manual'
+      prompt_id:
+        description: 'Prompt ID to use (optional)'
+        type: string
         required: false
-        default: ''
-      new_only:
-        description: 'Only benchmark newly discovered models'
-        required: false
-        default: 'false'
   repository_dispatch:
-    types: [new-models-detected]
+    types: [trigger-benchmark]
 
 env:
   OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -35,22 +39,23 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install requests
+        run: pip install requests
 
-      - name: Restore catalog
+      - name: Ensure catalog exists
         run: |
-          python watch_models.py
+          python watch_models.py || true
 
       - name: Run benchmark
         run: |
-          python benchmark.py ${{ inputs.new_only == 'true' && '--new-only' || '' }} ${{ inputs.prompt_ids && format('--prompts {0}', inputs.prompt_ids) || '' }}
+          python benchmark.py \
+            --reason ${{ inputs.benchmark_reason || 'scheduled' }} \
+            ${{ inputs.prompt_id && format('--prompt {0}', inputs.prompt_id) || '' }}
 
-      - name: Upload benchmark results
+      - name: Upload benchmark data
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-runs
-          path: data/runs/
+          name: benchmark-data
+          path: data/
           retention-days: 30
 
   analyze:
@@ -66,33 +71,45 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install requests
+        run: pip install requests
 
-      - name: Download benchmark results
+      - name: Download benchmark data
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-runs
-          path: data/runs/
+          name: benchmark-data
+          path: data/
 
-      - name: Generate analysis
+      - name: Generate model index
         run: |
-          python analyze.py --window 30 --min-runs 3
-
-      - name: Generate report
-        run: |
-          python analyze.py --report
+          python analyze.py --min-runs 3
 
       - name: Upload derived index
         uses: actions/upload-artifact@v4
         with:
           name: derived-index
-          path: data/derived/latest.json
+          path: data/derived/model_index.csv
           retention-days: 90
 
-      - name: Upload summary report
-        uses: actions/upload-artifact@v4
+  commit:
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Git config
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Download benchmark data
+        uses: actions/download-artifact@v4
         with:
-          name: summary-report
-          path: data/derived/summary_report.md
-          retention-days: 90
+          name: benchmark-data
+          path: data/
+
+      - name: Commit updated data
+        run: |
+          git add data/
+          git diff --cached --quiet || git commit -m "ci: update benchmark data $(date -u +%Y-%m-%d)"
+          git push

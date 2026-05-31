@@ -1,273 +1,213 @@
 #!/usr/bin/env python3
 """
-Analysis Module
+Analysis Module.
 
 Aggregates raw benchmark results and generates derived metrics.
-Produces one row per model summarizing aggregated metrics.
+Produces per-model summaries with median, p95 latency, tokens/sec, etc.
 """
 
-import os
 import json
 import statistics
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
-from pathlib import Path
 from collections import defaultdict
 
-
-def get_default_dirs() -> tuple[Path, Path, Path]:
-    data_dir = Path(os.getenv("DATA_DIR", "data"))
-    catalogs_dir = data_dir / "catalogs"
-    runs_dir = data_dir / "runs"
-    derived_dir = data_dir / "derived"
-    derived_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir, catalogs_dir, runs_dir, derived_dir
-
-
-def load_all_runs(runs_dir: Path, days_limit: Optional[int] = None) -> list[dict]:
-    all_results = []
-    cutoff_time = None
-    if days_limit:
-        cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_limit)
-
-    for run_file in sorted(runs_dir.glob("run_*.json"), reverse=True):
-        try:
-            with open(run_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                timestamp_str = data.get("timestamp", "")
-                if cutoff_time and timestamp_str:
-                    try:
-                        run_time = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                        if run_time < cutoff_time:
-                            continue
-                    except ValueError:
-                        pass
-                all_results.extend(data.get("results", []))
-        except (json.JSONDecodeError, IOError):
-            continue
-
-    return all_results
+from common import (
+    BENCHMARK_RUNS_FILE,
+    MODEL_INDEX_FILE,
+    read_csv,
+    ensure_csv,
+    safe_float,
+    safe_int,
+    now_iso,
+)
 
 
-def aggregate_model_metrics(results: list[dict], min_runs: int = 3) -> dict:
+def compute_percentile(values: list[float], percentile: float) -> float:
+    if not values:
+        return 0.0
+    sorted_vals = sorted(values)
+    index = int(len(sorted_vals) * percentile / 100)
+    index = min(index, len(sorted_vals) - 1)
+    return sorted_vals[index]
+
+
+def aggregate_model_metrics(rows: list[dict], min_runs: int = 3) -> list[dict]:
     model_data = defaultdict(lambda: {
         "runs": [],
+        "successes": 0,
+        "failures": 0,
         "latencies": [],
         "prompt_tokens": [],
         "completion_tokens": [],
         "total_tokens": [],
         "costs": [],
-        "successes": 0,
-        "failures": 0,
+        "timestamps": [],
     })
 
-    for result in results:
-        model_id = result.get("model_id", "unknown")
+    for row in rows:
+        model_id = row.get("model_id", "unknown")
+        if not model_id:
+            continue
+
         entry = model_data[model_id]
-
         entry["model_id"] = model_id
-        entry["display_name"] = result.get("display_name", model_id)
-        entry["canonical_family"] = result.get("canonical_family", "unknown")
-        entry["context_length"] = result.get("context_length")
-        entry["runs"].append(result.get("run_id", "unknown"))
-        entry["prompt_id"] = result.get("prompt_id", "unknown")
+        entry["canonical_family"] = row.get("canonical_family", "unknown")
+        entry["display_name"] = row.get("display_name", model_id)
+        entry["context_length"] = row.get("context_length")
+        entry["runs"].append(row.get("run_id", "unknown"))
 
-        if result.get("status") == "success":
+        status = row.get("status", "")
+        timestamp = row.get("timestamp_utc", "")
+
+        if status == "success":
             entry["successes"] += 1
-            entry["latencies"].append(result.get("latency_sec", 0))
-            entry["prompt_tokens"].append(result.get("prompt_tokens", 0))
-            entry["completion_tokens"].append(result.get("completion_tokens", 0))
-            entry["total_tokens"].append(result.get("total_tokens", 0))
-            cost = result.get("cost")
-            if cost is not None:
+            latency = safe_float(row.get("latency_sec"))
+            if latency > 0:
+                entry["latencies"].append(latency)
+
+            prompt_toks = safe_int(row.get("prompt_tokens"))
+            completion_toks = safe_int(row.get("completion_tokens"))
+            total_toks = safe_int(row.get("total_tokens"))
+
+            if prompt_toks > 0:
+                entry["prompt_tokens"].append(prompt_toks)
+            if completion_toks > 0:
+                entry["completion_tokens"].append(completion_toks)
+            if total_toks > 0:
+                entry["total_tokens"].append(total_toks)
+
+            cost = safe_float(row.get("cost"))
+            if cost >= 0:
                 entry["costs"].append(cost)
+
+            if timestamp:
+                entry["timestamps"].append(timestamp)
         else:
             entry["failures"] += 1
 
     aggregated = []
     for model_id, data in model_data.items():
         total_runs = data["successes"] + data["failures"]
-        if data["successes"] < min_runs:
-            continue
 
         latencies = data["latencies"]
         costs = data["costs"]
 
+        tokens_per_sec = []
+        for latency, total_toks in zip(latencies, data["total_tokens"]):
+            if latency > 0 and total_toks > 0:
+                tokens_per_sec.append(total_toks / latency)
+
+        timestamps = sorted(data["timestamps"])
+        first_seen = timestamps[0] if timestamps else None
+        last_seen = timestamps[-1] if timestamps else None
+
         agg = {
             "model_id": model_id,
-            "display_name": data["display_name"],
             "canonical_family": data["canonical_family"],
-            "context_length": data["context_length"],
+            "display_name": data["display_name"],
+            "context_length": data.get("context_length"),
             "total_runs": total_runs,
             "successful_runs": data["successes"],
             "failed_runs": data["failures"],
-            "success_rate": round(data["successes"] / total_runs, 4) if total_runs > 0 else 0,
+            "success_rate": round(data["successes"] / total_runs, 4) if total_runs > 0 else 0.0,
+            "error_rate": round(data["failures"] / total_runs, 4) if total_runs > 0 else 0.0,
             "latency_sec_avg": round(statistics.mean(latencies), 3) if latencies else None,
             "latency_sec_median": round(statistics.median(latencies), 3) if latencies else None,
+            "latency_sec_p95": round(compute_percentile(latencies, 95), 3) if latencies else None,
             "latency_sec_min": round(min(latencies), 3) if latencies else None,
             "latency_sec_max": round(max(latencies), 3) if latencies else None,
-            "latency_sec_stddev": round(statistics.stdev(latencies), 3) if len(latencies) > 1 else 0,
-            "prompt_tokens_avg": round(statistics.mean(data["prompt_tokens"])) if data["prompt_tokens"] else None,
-            "completion_tokens_avg": round(statistics.mean(data["completion_tokens"])) if data["completion_tokens"] else None,
             "total_tokens_avg": round(statistics.mean(data["total_tokens"])) if data["total_tokens"] else None,
-            "cost_avg": round(statistics.mean(costs), 8) if costs else 0,
-            "cost_total": round(sum(costs), 8) if costs else 0,
-            "last_run": max((r.get("timestamp") for r in results if r.get("model_id") == model_id), default=None),
+            "completion_tokens_avg": round(statistics.mean(data["completion_tokens"])) if data["completion_tokens"] else None,
+            "tokens_per_sec_avg": round(statistics.mean(tokens_per_sec), 2) if tokens_per_sec else None,
+            "cost_avg": round(statistics.mean(costs), 8) if costs else 0.0,
+            "cost_total": round(sum(costs), 8) if costs else 0.0,
+            "first_seen": first_seen,
+            "last_seen": last_seen,
         }
 
-        aggregated.append(agg)
+        if data["successes"] >= min_runs:
+            aggregated.append(agg)
 
-    aggregated.sort(key=lambda x: (x["success_rate"], x["latency_sec_avg"] or 9999), reverse=True)
+    aggregated.sort(key=lambda x: (x["success_rate"], x.get("latency_sec_avg") or 9999), reverse=True)
     return aggregated
 
 
-def generate_derived_index(
-    runs_dir: Optional[Path] = None,
-    derived_dir: Optional[Path] = None,
-    window_days: Optional[int] = None,
-    min_runs: int = 3,
-) -> dict:
-    if runs_dir is None:
-        _, _, runs_dir, derived_dir = get_default_dirs()
+def generate_model_index(min_runs: int = 3) -> dict:
+    print("Loading benchmark data...")
+    rows = read_csv(BENCHMARK_RUNS_FILE)
+    print(f"Loaded {len(rows)} benchmark records")
 
-    window = window_days or int(os.getenv("ANALYSIS_WINDOW_DAYS", "30"))
-    min_required = min_runs or int(os.getenv("MIN_RUNS_FOR_AGGREGATION", "3"))
+    if not rows:
+        return {"success": False, "error": "No benchmark data found"}
 
-    print(f"Analyzing benchmark results (window: {window} days, min runs: {min_required})...")
-
-    all_results = load_all_runs(runs_dir, days_limit=window)
-    print(f"Loaded {len(all_results)} benchmark results")
-
-    if not all_results:
-        return {"success": False, "error": "No benchmark results found"}
-
-    aggregated = aggregate_model_metrics(all_results, min_runs=min_required)
+    print(f"Aggregating metrics (min runs: {min_runs})...")
+    aggregated = aggregate_model_metrics(rows, min_runs=min_runs)
     print(f"Aggregated metrics for {len(aggregated)} models")
 
-    timestamp = datetime.now(timezone.utc).isoformat()
-    derived_record = {
-        "index_type": "model_aggregated_metrics",
+    if not aggregated:
+        return {"success": False, "error": "No models met minimum run threshold"}
+
+    timestamp = now_iso()
+
+    ensure_csv(MODEL_INDEX_FILE, list(aggregated[0].keys()) if aggregated else [])
+
+    import csv
+    with open(MODEL_INDEX_FILE, "w", newline="", encoding="utf-8") as f:
+        if aggregated:
+            writer = csv.DictWriter(f, fieldnames=list(aggregated[0].keys()))
+            writer.writeheader()
+            writer.writerows(aggregated)
+
+    print(f"Model index saved to: {MODEL_INDEX_FILE}")
+
+    return {
+        "success": True,
+        "index_path": str(MODEL_INDEX_FILE),
+        "models_aggregated": len(aggregated),
+        "total_records_analyzed": len(rows),
         "generated_at": timestamp,
-        "window_days": window,
-        "min_runs_for_aggregation": min_required,
-        "total_results_analyzed": len(all_results),
-        "models_aggregated": len(aggregated),
-        "models": aggregated,
     }
 
-    index_filename = f"index_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
-    index_path = derived_dir / index_filename
 
-    with open(index_path, "w", encoding="utf-8") as f:
-        json.dump(derived_record, f, indent=2, ensure_ascii=False)
+def get_summary_stats() -> dict:
+    rows = read_csv(BENCHMARK_RUNS_FILE)
+    if not rows:
+        return {"success": False, "error": "No data"}
 
-    latest_link = derived_dir / "latest.json"
-    with open(latest_link, "w", encoding="utf-8") as f:
-        json.dump(derived_record, f, indent=2, ensure_ascii=False)
+    model_ids = set(r.get("model_id") for r in rows if r.get("model_id"))
+    total_runs = set(r.get("run_id") for r in rows if r.get("run_id"))
 
-    print(f"Derived index saved to: {index_path}")
+    successful = len([r for r in rows if r.get("status") == "success"])
+    failed = len([r for r in rows if r.get("status") != "success"])
+
+    latencies = [safe_float(r.get("latency_sec")) for r in rows if r.get("latency_sec")]
+    avg_latency = round(statistics.mean(latencies), 3) if latencies else 0
 
     return {
-        "success": True,
-        "index_path": str(index_path),
-        "models_aggregated": len(aggregated),
-        "total_results_analyzed": len(all_results),
+        "total_records": len(rows),
+        "total_models": len(model_ids),
+        "total_runs": len(total_runs),
+        "successful": successful,
+        "failed": failed,
+        "success_rate": round(successful / len(rows), 4) if rows else 0,
+        "avg_latency_sec": avg_latency,
     }
-
-
-def generate_summary_report(derived_dir: Path) -> dict:
-    latest_path = derived_dir / "latest.json"
-    if not latest_path.exists():
-        return {"success": False, "error": "No derived index found"}
-
-    with open(latest_path, "r", encoding="utf-8") as f:
-        index_data = json.load(f)
-
-    models = index_data.get("models", [])
-    if not models:
-        return {"success": False, "error": "No models in index"}
-
-    report_lines = []
-    report_lines.append("# Free Model Pulse - Benchmark Summary\n")
-    report_lines.append(f"Generated: {index_data.get('generated_at', 'unknown')}")
-    report_lines.append(f"Window: {index_data.get('window_days', 'unknown')} days")
-    report_lines.append(f"Models analyzed: {len(models)}\n")
-
-    report_lines.append("## Top Performing Models (by success rate + latency)\n")
-    report_lines.append("| Model | Family | Success Rate | Avg Latency | Avg Tokens | Cost/RUN |")
-    report_lines.append("|-------|--------|--------------|-------------|------------|----------|")
-
-    for m in models[:10]:
-        latency = f"{m['latency_sec_avg']:.3f}s" if m.get("latency_sec_avg") else "N/A"
-        tokens = m.get("total_tokens_avg", "N/A")
-        cost = f"${m.get('cost_avg', 0):.6f}" if m.get("cost_avg") else "$0.000000"
-        report_lines.append(f"| {m['model_id']} | {m.get('canonical_family', 'N/A')} | "
-                            f"{m.get('success_rate', 0)*100:.1f}% | {latency} | {tokens} | {cost} |")
-
-    report_lines.append("\n## Models by Success Rate\n")
-    by_success = sorted(models, key=lambda x: x.get("success_rate", 0), reverse=True)
-    for m in by_success:
-        report_lines.append(f"- {m['model_id']}: {m.get('success_rate', 0)*100:.1f}% success")
-
-    report_text = "\n".join(report_lines)
-
-    report_path = derived_dir / "summary_report.md"
-    with open(report_path, "w", encoding="utf-8") as f:
-        f.write(report_text)
-
-    return {
-        "success": True,
-        "report_path": str(report_path),
-        "text": report_text,
-    }
-
-
-def list_runs(runs_dir: Path) -> list[dict]:
-    runs = []
-    for run_file in sorted(runs_dir.glob("run_*.json"), reverse=True):
-        try:
-            with open(run_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                runs.append({
-                    "run_id": data.get("run_id"),
-                    "timestamp": data.get("timestamp"),
-                    "total_tests": data.get("total_tests"),
-                    "successful": data.get("successful"),
-                    "failed": data.get("failed"),
-                    "file": str(run_file.name),
-                })
-        except (json.JSONDecodeError, IOError):
-            continue
-    return runs
 
 
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Analyze benchmark results")
-    parser.add_argument("--window", type=int, help="Analysis window in days")
-    parser.add_argument("--min-runs", type=int, help="Minimum runs for aggregation")
-    parser.add_argument("--report", action="store_true", help="Generate markdown summary report")
-    parser.add_argument("--list-runs", action="store_true", help="List all benchmark runs")
+    parser.add_argument("--min-runs", type=int, default=3, help="Minimum runs for aggregation")
+    parser.add_argument("--stats", action="store_true", help="Show summary statistics")
     args = parser.parse_args()
 
-    _, _, runs_dir, derived_dir = get_default_dirs()
-
-    if args.list_runs:
-        runs = list_runs(runs_dir)
-        print(json.dumps(runs, indent=2))
+    if args.stats:
+        stats = get_summary_stats()
+        print(json.dumps(stats, indent=2))
         return
 
-    if args.report:
-        result = generate_summary_report(derived_dir)
-        print(json.dumps(result, indent=2))
-        return
-
-    result = generate_derived_index(
-        runs_dir=runs_dir,
-        derived_dir=derived_dir,
-        window_days=args.window,
-        min_runs=args.min_runs,
-    )
+    result = generate_model_index(min_runs=args.min_runs)
     print(json.dumps(result, indent=2))
 
 
