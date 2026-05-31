@@ -171,27 +171,113 @@ Aggregated per model:
 
 ## GitHub Actions
 
+### Workflow Overview
+
+The project uses two workflows that work together:
+
+```
+┌─────────────────────┐
+│   Model Discovery   │  Every 6 hours (schedule)
+│   (model-watch.yml) │  Manual trigger (workflow_dispatch)
+└─────────┬───────────┘
+          │ Changes detected?
+          ▼
+    ┌───────────────┐
+    │  New models   │──────► Manual trigger of benchmark
+    │  found?      │         via workflow_dispatch
+    └───────────────┘
+          │
+          │ No changes
+          ▼
+    ┌───────────────┐
+    │  Exit cleanly  │
+    └───────────────┘
+
+┌─────────────────────┐
+│   Benchmark &      │  Daily (schedule)
+│   Analysis          │  Manual trigger (workflow_dispatch)
+│   (benchmark.yml)  │  External trigger (repository_dispatch)
+└─────────┬───────────┘
+          │
+          ▼
+    ┌───────────────┐
+    │  Unit Tests    │
+    └───────────────┘
+          │
+          ▼
+    ┌───────────────┐
+    │  Run Benchmark │  All free models or new only
+    └───────────────┘
+          │
+          ▼
+    ┌───────────────┐
+    │  Analyze Data  │  Generate model_index.csv
+    └───────────────┘
+          │
+          ▼
+    ┌───────────────┐
+    │  Commit Data   │  Push updated data to repo
+    └───────────────┘
+```
+
+### Trigger Matrix
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| Model Discovery | `schedule: "0 */6 * * *"` | Every 6 hours |
+| Model Discovery | `workflow_dispatch` | Manual catalog refresh |
+| Benchmark | `schedule: "0 0 * * *"` | Daily at midnight |
+| Benchmark | `workflow_dispatch` | Manual benchmark run |
+| Benchmark | `repository_dispatch` | Triggered by external systems |
+
 ### Required Secrets
 
-- `OPENROUTER_API_KEY`: Your OpenRouter API key
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
 
 ### Required Variables
 
-- `OPENROUTER_SITE_URL`: Your site URL (optional but recommended)
-- `OPENROUTER_SITE_EMAIL`: Your contact email (optional)
+| Variable | Required | Description |
+|---------|----------|-------------|
+| `OPENROUTER_SITE_URL` | No | Site URL for OpenRouter |
+| `OPENROUTER_SITE_EMAIL` | No | Contact email for OpenRouter |
 
-### Workflows
+### Anti-Loop Protections
 
-1. **Model Watch** (every 6 hours):
-   - Polls OpenRouter for model catalog changes
-   - Detects new/removed free models
-   - Stores catalog snapshot and history
+1. **Concurrency Groups**: Each workflow has its own concurrency group
+   - `model-watch`: `cancel-in-progress: true` - Cancels overlapping watch runs
+   - `benchmark`: `cancel-in-progress: false` - Allows benchmark to complete even if new triggers arrive
 
-2. **Benchmark & Analysis** (daily + on-demand):
-   - Discovers current free models
-   - Benchmarks each model
-   - Generates aggregated model index
-   - Commits updated data back to repo
+2. **Conditional Triggers**: The model watch workflow only commits and could trigger benchmark if actual new models are detected
+
+3. **Idempotent Data**: Benchmark data is append-only (CSV), catalog snapshots are content-addressed by hash
+
+4. **Git History Check**: Commit step checks `git diff --cached --quiet` before committing to avoid empty commits
+
+### Event Flow: New Model Detection
+
+```
+1. model-watch.yml runs (schedule or manual)
+2. Python script fetches OpenRouter models
+3. Script compares with previous catalog (from free_models_history.jsonl)
+4. If new models found:
+   a. Commits updated catalog to repo
+   b. Workflow completes with "changes detected" status
+5. User manually triggers benchmark.yml or uses workflow_dispatch
+   - Or external system sends repository_dispatch event
+6. benchmark.yml runs:
+   a. Unit tests pass
+   b. Benchmarks all current free models
+   c. Generates model_index.csv
+   d. Commits updated data to repo
+```
+
+### Architecture Notes
+
+- **`GITHUB_TOKEN` is sufficient**: No PAT needed since workflows dispatch within the same repo
+- **Workflows exist on main branch**: Required for repository_dispatch to work
+- **Data commits use conditional**: Empty diffs don't create commits
 
 ## Design Principles
 

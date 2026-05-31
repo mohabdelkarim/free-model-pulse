@@ -10,17 +10,28 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: model-watch
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   discover:
+    name: Discover Free Models
     runs-on: ubuntu-latest
     outputs:
-      has_changes: ${{ steps.discover.outputs.has_changes }}
-      new_models: ${{ steps.discover.outputs.new_models }}
-      catalog_id: ${{ steps.discover.outputs.catalog_id }}
-      total_models: ${{ steps.discover.outputs.total_models }}
+      catalog_id: ${{ steps.catalog.outputs.catalog_id }}
+      total_models: ${{ steps.catalog.outputs.total_models }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      new_models: ${{ steps.changes.outputs.new_models }}
+      new_models_count: ${{ steps.changes.outputs.new_models_count }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -38,72 +49,76 @@ jobs:
           OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
         run: |
           python watch_models.py --force ${{ inputs.force == true && '--force' || '' }}
-          echo "has_changes=$(python -c "import json; print(open('data/catalog/current_free_models.json').read() and 'true' if __import__('os').path.exists('data/catalog/current_free_models.json') else 'false')")" >> $GITHUB_OUTPUT
 
-      - name: Read discovery result
-        id: result
+      - name: Read catalog
+        id: catalog
         run: |
           python -c "
           import json
           with open('data/catalog/current_free_models.json') as f:
               data = json.load(f)
-          print(f'has_changes=true')
-          print(f'catalog_id={data.get(\"catalog_id\", \"\")}')
-          print(f'total_models={data.get(\"total_models\", 0)}')
+          print('catalog_id={}'.format(data.get('catalog_id', '')))
+          print('total_models={}'.format(data.get('total_models', 0)))
           " >> $GITHUB_OUTPUT
 
-      - name: Check for new models
-        id: check_new
+      - name: Detect changes
+        id: changes
         run: |
           python -c "
           import json
-          import sys
-          
-          # Read current catalog
+          import os
+
           with open('data/catalog/current_free_models.json') as f:
               current = json.load(f)
-          
+
           current_ids = set(m['model_id'] for m in current.get('models', []))
-          
-          # Try to find previous catalog
-          import os
-          prev_file = 'data/catalog/free_models_history.jsonl'
           prev_ids = set()
-          
-          if os.path.exists(prev_file):
-              with open(prev_file) as f:
-                  for line in f:
-                      entry = json.loads(line.strip())
-                      if entry.get('action') == 'snapshot' and entry.get('catalog_id') != current.get('catalog_id'):
-                          prev_ids = set(entry.get('model_ids', []))
-                          break
-          
+
+          history_file = 'data/catalog/free_models_history.jsonl'
+          if os.path.exists(history_file):
+              with open(history_file) as f:
+                  lines = f.readlines()
+              for line in lines[-5:]:
+                  entry = json.loads(line.strip())
+                  if entry.get('action') == 'snapshot' and entry.get('catalog_id') != current.get('catalog_id'):
+                      prev_ids = set(entry.get('model_ids', []))
+                      break
+
           new_ids = sorted(current_ids - prev_ids)
-          
-          print(f'new_models={json.dumps(new_ids)}')
+          print('has_changes={}'.format(str(len(new_ids) > 0).lower()))
+          print('new_models={}'.format(json.dumps(new_ids)))
+          print('new_models_count={}'.format(len(new_ids)))
           " >> $GITHUB_OUTPUT
 
-      - name: Upload catalog snapshot
-        if: steps.check_new.outputs.new_models != '[]'
-        uses: actions/upload-artifact@v4
-        with:
-          name: catalog-snapshot
-          path: data/catalog/current_free_models.json
-          retention-days: 7
-
-      - name: Trigger benchmark for new models
-        if: steps.check_new.outputs.new_models != '[]'
+      - name: Commit catalog snapshot
+        if: steps.changes.outputs.has_changes == 'true'
         run: |
-          echo "New models detected: ${{ steps.check_new.outputs.new_models }}"
-          echo "::set-output name=trigger_benchmark::true"
-        id: trigger
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add data/catalog/
+          git diff --cached --quiet || echo "No changes to commit"
+          git diff --cached --quiet || git commit -m "chore: update free models catalog $(date -u +%Y-%m-%d)"
+          git push
+
+      - name: Trigger benchmark workflow
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          echo "New free models detected: ${{ steps.changes.outputs.new_models_count }}"
+          echo "Triggering benchmark workflow..."
 
   output:
-    runs-on: ubuntu-latest
+    name: Output Status
     needs: discover
-    outputs:
-      new_models: ${{ needs.discover.outputs.new_models }}
+    runs-on: ubuntu-latest
     steps:
-      - name: Output new models
+      - name: Summary
         run: |
-          echo "New models: ${{ needs.discover.outputs.new_models }}"
+          echo "## Model Discovery Summary"
+          echo "- Catalog ID: ${{ needs.discover.outputs.catalog_id }}"
+          echo "- Total free models: ${{ needs.discover.outputs.total_models }}"
+          echo "- New models: ${{ needs.discover.outputs.new_models_count }}"
+          if [ "${{ needs.discover.outputs.has_changes }}" == "true" ]; then
+            echo "- Status: Changes detected, benchmark triggered"
+          else
+            echo "- Status: No changes"
+          fi
