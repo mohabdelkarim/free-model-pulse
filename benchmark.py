@@ -39,7 +39,6 @@ RETRY_BUDGET_SEC = 300
 # Delay between models to avoid hammering the free tier rate limit
 INTER_MODEL_DELAY = float(os.getenv("BENCHMARK_INTER_MODEL_DELAY", "8"))
 
-
 LOG = get_logger("benchmark")
 
 
@@ -227,6 +226,8 @@ def run_benchmark(
     prompt_id: Optional[str] = None,
     benchmark_reason: str = "manual",
     run_id: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: int = 0,
 ) -> dict:
     LOG.info("Starting benchmark run")
 
@@ -257,6 +258,12 @@ def run_benchmark(
             return {"success": False, "error": "No catalog available. Run watch_models.py first."}
         models = catalog.get("models", [])
 
+    # Apply offset + limit to slice the catalog
+    total_catalog = len(models)
+    models = models[offset:]
+    if limit is not None:
+        models = models[:limit]
+
     if not run_id:
         run_id = get_run_id()
 
@@ -275,7 +282,8 @@ def run_benchmark(
     LOG.info("Run ID: %s", run_id)
     LOG.info("Reason: %s", benchmark_reason)
     LOG.info("Prompt: %s (v%s)", prompt_id, prompt_version)
-    LOG.info("Models to test: %d", total_tests)
+    LOG.info("Models to test: %d (offset=%d, limit=%s, catalog_total=%d)",
+             total_tests, offset, limit, total_catalog)
     LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
 
     start_time = time.time()
@@ -354,6 +362,8 @@ def run_benchmark(
         "skipped": skipped,
         "duration_sec": round(total_duration, 1),
         "catalog_id": catalog_id,
+        "offset": offset,
+        "limit": limit,
     }
 
 
@@ -386,6 +396,10 @@ def main():
     parser.add_argument("--run-id", help="Custom run ID")
     parser.add_argument("--new-only", action="store_true",
                        help="Benchmark only newly discovered models")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Max number of models to benchmark in this run (e.g. 8)")
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip the first N models in the catalog (use with --limit for batching)")
     args = parser.parse_args()
 
     setup_logging()
@@ -399,10 +413,12 @@ def main():
         if catalog:
             models = catalog.get("models", [])
         result = run_benchmark(models=models, prompt_id=args.prompt,
-                              benchmark_reason="new_model_detected", run_id=args.run_id)
+                              benchmark_reason="new_model_detected", run_id=args.run_id,
+                              limit=args.limit, offset=args.offset)
     else:
         result = run_benchmark(models=models, prompt_id=args.prompt,
-                              benchmark_reason=args.reason, run_id=args.run_id)
+                              benchmark_reason=args.reason, run_id=args.run_id,
+                              limit=args.limit, offset=args.offset)
 
     print(json.dumps(result, indent=2))
 
