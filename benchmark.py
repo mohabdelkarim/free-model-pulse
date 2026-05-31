@@ -36,6 +36,9 @@ RETRY_DELAY_BASE = 2
 MAX_RETRY_DELAY = 60
 RETRY_BUDGET_SEC = 300
 
+# Delay between models to avoid hammering the free tier rate limit
+INTER_MODEL_DELAY = float(os.getenv("BENCHMARK_INTER_MODEL_DELAY", "8"))
+
 
 LOG = get_logger("benchmark")
 
@@ -273,10 +276,11 @@ def run_benchmark(
     LOG.info("Reason: %s", benchmark_reason)
     LOG.info("Prompt: %s (v%s)", prompt_id, prompt_version)
     LOG.info("Models to test: %d", total_tests)
+    LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
 
     start_time = time.time()
 
-    for model in models:
+    for i, model in enumerate(models):
         model_id = model.get("model_id")
         if not model_id:
             skipped += 1
@@ -324,7 +328,10 @@ def run_benchmark(
             failed += 1
             LOG.error("[%s] FAILED - %s", model_id, result.get("error_message", "Unknown error"))
 
-        time.sleep(1)
+        # Respect free tier rate limits — skip delay after last model
+        if i < total_tests - 1:
+            LOG.debug("Waiting %.1fs before next model...", INTER_MODEL_DELAY)
+            time.sleep(INTER_MODEL_DELAY)
 
     total_duration = time.time() - start_time
 
