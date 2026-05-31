@@ -20,7 +20,12 @@ from common import (
     safe_float,
     safe_int,
     now_iso,
+    setup_logging,
+    get_logger,
 )
+
+
+LOG = get_logger("analyze")
 
 
 def compute_percentile(values: list[float], percentile: float) -> float:
@@ -62,6 +67,7 @@ def aggregate_model_metrics(rows: list[dict], min_runs: int = 3) -> list[dict]:
 
         if status == "success":
             entry["successes"] += 1
+
             latency = safe_float(row.get("latency_sec"))
             if latency > 0:
                 entry["latencies"].append(latency)
@@ -134,23 +140,25 @@ def aggregate_model_metrics(rows: list[dict], min_runs: int = 3) -> list[dict]:
 
 
 def generate_model_index(min_runs: int = 3) -> dict:
-    print("Loading benchmark data...")
+    LOG.info("Loading benchmark data...")
     rows = read_csv(BENCHMARK_RUNS_FILE)
-    print(f"Loaded {len(rows)} benchmark records")
+    LOG.info("Loaded %d benchmark records", len(rows))
 
     if not rows:
+        LOG.warning("No benchmark data found")
         return {"success": False, "error": "No benchmark data found"}
 
-    print(f"Aggregating metrics (min runs: {min_runs})...")
+    LOG.info("Aggregating metrics (min runs: %d)...", min_runs)
     aggregated = aggregate_model_metrics(rows, min_runs=min_runs)
-    print(f"Aggregated metrics for {len(aggregated)} models")
+    LOG.info("Aggregated metrics for %d models", len(aggregated))
 
     if not aggregated:
+        LOG.warning("No models met minimum run threshold of %d", min_runs)
         return {"success": False, "error": "No models met minimum run threshold"}
 
     timestamp = now_iso()
 
-    ensure_csv(MODEL_INDEX_FILE, list(aggregated[0].keys()) if aggregated else [])
+    ensure_csv(MODEL_INDEX_FILE, list(aggregated[0].keys()))
 
     import csv
     with open(MODEL_INDEX_FILE, "w", newline="", encoding="utf-8") as f:
@@ -159,7 +167,7 @@ def generate_model_index(min_runs: int = 3) -> dict:
             writer.writeheader()
             writer.writerows(aggregated)
 
-    print(f"Model index saved to: {MODEL_INDEX_FILE}")
+    LOG.info("Model index saved to: %s", MODEL_INDEX_FILE)
 
     return {
         "success": True,
@@ -171,8 +179,10 @@ def generate_model_index(min_runs: int = 3) -> dict:
 
 
 def get_summary_stats() -> dict:
+    LOG.info("Computing summary statistics...")
     rows = read_csv(BENCHMARK_RUNS_FILE)
     if not rows:
+        LOG.warning("No data available")
         return {"success": False, "error": "No data"}
 
     model_ids = set(r.get("model_id") for r in rows if r.get("model_id"))
@@ -183,6 +193,9 @@ def get_summary_stats() -> dict:
 
     latencies = [safe_float(r.get("latency_sec")) for r in rows if r.get("latency_sec")]
     avg_latency = round(statistics.mean(latencies), 3) if latencies else 0
+
+    LOG.info("Summary: %d records, %d models, %d runs",
+             len(rows), len(model_ids), len(total_runs))
 
     return {
         "total_records": len(rows),
@@ -201,6 +214,8 @@ def main():
     parser.add_argument("--min-runs", type=int, default=3, help="Minimum runs for aggregation")
     parser.add_argument("--stats", action="store_true", help="Show summary statistics")
     args = parser.parse_args()
+
+    setup_logging()
 
     if args.stats:
         stats = get_summary_stats()

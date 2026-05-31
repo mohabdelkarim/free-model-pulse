@@ -9,6 +9,7 @@ Records results to append-only CSV raw datasets.
 import os
 import json
 import time
+import hashlib
 import requests
 from datetime import datetime, timezone
 from typing import Optional
@@ -23,13 +24,20 @@ from common import (
     append_csv_row,
     safe_float,
     safe_int,
+    setup_logging,
+    get_logger,
 )
 
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 REQUEST_TIMEOUT = int(os.getenv("BENCHMARK_TIMEOUT_SEC", "120"))
 MAX_RETRIES = int(os.getenv("BENCHMARK_MAX_RETRIES", "3"))
-RETRY_DELAY = int(os.getenv("BENCHMARK_RETRY_DELAY_SEC", "5"))
+RETRY_DELAY_BASE = 2
+MAX_RETRY_DELAY = 60
+RETRY_BUDGET_SEC = 300
+
+
+LOG = get_logger("benchmark")
 
 
 def get_api_headers() -> dict:
@@ -44,6 +52,19 @@ def get_api_headers() -> dict:
     if site_email:
         headers["X-Title"] = "Free Model Pulse"
     return headers
+
+
+def is_retryable_status(status_code: int) -> bool:
+    return status_code == 429 or (500 <= status_code < 600)
+
+
+def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> float:
+    if retry_after and retry_after > 0:
+        return min(retry_after, MAX_RETRY_DELAY)
+
+    delay = RETRY_DELAY_BASE * (2 ** attempt)
+    jitter = delay * 0.1 * (hashlib.md5(str(time.time()).encode()).hexdigest()[0:2], int.from_bytes) % 10)
+    return min(delay + jitter, MAX_RETRY_DELAY)
 
 
 def load_current_catalog() -> Optional[dict]:
@@ -65,8 +86,18 @@ def benchmark_single_model(
     }
 
     start_time = time.time()
+    last_error = None
 
     for attempt in range(MAX_RETRIES):
+        elapsed = time.time() - start_time
+        if elapsed >= RETRY_BUDGET_SEC:
+            LOG.warning("Retry budget exhausted for %s after %.1fs", model_id, elapsed)
+            return {
+                "status": "error",
+                "error_message": f"Retry budget exhausted after {elapsed:.1f}s",
+                "latency_sec": round(elapsed, 3),
+            }
+
         try:
             response = requests.post(
                 OPENROUTER_API_URL,
@@ -78,10 +109,31 @@ def benchmark_single_model(
             elapsed_time = time.time() - start_time
 
             if response.status_code == 429:
-                wait_time = int(response.headers.get("Retry-After", RETRY_DELAY * (attempt + 1)))
-                print(f"  Rate limited. Waiting {wait_time}s...")
-                time.sleep(wait_time)
-                continue
+                retry_after = int(response.headers.get("Retry-After", 0))
+                delay = compute_backoff_delay(attempt, retry_after)
+                LOG.warning("[%s] Rate limited. Attempt %d/%d. Waiting %.1fs",
+                          model_id, attempt + 1, MAX_RETRIES, delay)
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(delay)
+                    continue
+                return {
+                    "status": "error",
+                    "error_message": f"Rate limited (429) after {MAX_RETRIES} attempts",
+                    "latency_sec": round(elapsed_time, 3),
+                }
+
+            if is_retryable_status(response.status_code):
+                delay = compute_backoff_delay(attempt)
+                LOG.warning("[%s] Server error %d. Attempt %d/%d. Waiting %.1fs",
+                          model_id, response.status_code, attempt + 1, MAX_RETRIES, delay)
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(delay)
+                    continue
+                return {
+                    "status": "error",
+                    "error_message": f"Server error {response.status_code} after {MAX_RETRIES} attempts",
+                    "latency_sec": round(elapsed_time, 3),
+                }
 
             if response.status_code != 200:
                 return {
@@ -91,12 +143,23 @@ def benchmark_single_model(
                 }
 
             data = response.json()
+
+            if "choices" not in data or not data["choices"]:
+                return {
+                    "status": "error",
+                    "error_message": "Empty or malformed response: no choices",
+                    "latency_sec": round(elapsed_time, 3),
+                }
+
             usage = data.get("usage", {})
             choice = data.get("choices", [{}])[0]
 
             finish_reason = choice.get("finish_reason", "unknown")
             if isinstance(finish_reason, dict):
                 finish_reason = finish_reason.get("reason", "unknown")
+
+            LOG.debug("[%s] Success - Latency: %.3fs, Tokens: %s",
+                     model_id, elapsed_time, usage.get("total_tokens", "N/A"))
 
             return {
                 "status": "success",
@@ -113,30 +176,45 @@ def benchmark_single_model(
             }
 
         except requests.exceptions.Timeout:
+            elapsed_time = time.time() - start_time
+            LOG.warning("[%s] Timeout after %.1fs. Attempt %d/%d",
+                      model_id, elapsed_time, attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
-                print(f"  Timeout. Retrying...")
-                time.sleep(RETRY_DELAY)
+                delay = compute_backoff_delay(attempt)
+                time.sleep(delay)
                 continue
             return {
                 "status": "timeout",
                 "error_message": f"Request timed out after {timeout}s",
-                "latency_sec": time.time() - start_time,
+                "latency_sec": round(elapsed_time, 3),
             }
 
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.ConnectionError as e:
+            elapsed_time = time.time() - start_time
+            LOG.warning("[%s] Connection error: %s. Attempt %d/%d",
+                       model_id, str(e)[:100], attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
-                print(f"  Request failed: {e}. Retrying...")
-                time.sleep(RETRY_DELAY)
+                delay = compute_backoff_delay(attempt)
+                time.sleep(delay)
                 continue
             return {
                 "status": "error",
+                "error_message": f"Connection error: {str(e)[:200]}",
+                "latency_sec": round(elapsed_time, 3),
+            }
+
+        except requests.exceptions.RequestException as e:
+            elapsed_time = time.time() - start_time
+            LOG.error("[%s] Request failed: %s", model_id, str(e)[:200])
+            return {
+                "status": "error",
                 "error_message": str(e)[:200],
-                "latency_sec": time.time() - start_time,
+                "latency_sec": round(elapsed_time, 3),
             }
 
     return {
         "status": "error",
-        "error_message": "Max retries exceeded",
+        "error_message": last_error or "Max retries exceeded",
         "latency_sec": time.time() - start_time,
     }
 
@@ -147,6 +225,8 @@ def run_benchmark(
     benchmark_reason: str = "manual",
     run_id: Optional[str] = None,
 ) -> dict:
+    LOG.info("Starting benchmark run")
+
     prompts_data = load_prompts()
     prompts_list = prompts_data.get("prompts", [])
 
@@ -159,6 +239,7 @@ def run_benchmark(
             selected_prompts = [prompts_list[0]]
 
     if not selected_prompts:
+        LOG.error("No prompts found in prompts.json")
         return {"success": False, "error": "No prompts found in prompts.json"}
 
     prompt = selected_prompts[0]
@@ -169,6 +250,7 @@ def run_benchmark(
     if not models:
         catalog = load_current_catalog()
         if not catalog:
+            LOG.error("No catalog available. Run watch_models.py first.")
             return {"success": False, "error": "No catalog available. Run watch_models.py first."}
         models = catalog.get("models", [])
 
@@ -185,18 +267,24 @@ def run_benchmark(
     completed = 0
     successful = 0
     failed = 0
+    skipped = 0
 
-    print(f"\nBenchmark run: {run_id}")
-    print(f"Reason: {benchmark_reason}")
-    print(f"Prompt: {prompt_id} (v{prompt_version})")
-    print(f"Models to test: {total_tests}\n")
+    LOG.info("Run ID: %s", run_id)
+    LOG.info("Reason: %s", benchmark_reason)
+    LOG.info("Prompt: %s (v%s)", prompt_id, prompt_version)
+    LOG.info("Models to test: %d", total_tests)
+
+    start_time = time.time()
 
     for model in models:
         model_id = model.get("model_id")
         if not model_id:
+            skipped += 1
+            LOG.warning("Skipping model with empty model_id")
             continue
 
-        print(f"[{completed + 1}/{total_tests}] Testing {model_id}...")
+        completed += 1
+        LOG.info("[%d/%d] Testing %s...", completed, total_tests, model_id)
 
         result = benchmark_single_model(model_id, prompt_text, prompt_version)
 
@@ -225,20 +313,27 @@ def run_benchmark(
 
         append_csv_row(BENCHMARK_RUNS_FILE, row)
 
-        completed += 1
         if result.get("status") == "success":
             successful += 1
-            print(f"  OK - Latency: {result['latency_sec']:.3f}s, "
-                  f"Tokens: {result.get('total_tokens')}, "
-                  f"Cost: ${result.get('cost', 0):.6f}")
+            LOG.info("[%s] SUCCESS - Latency: %.3fs, Tokens: %s, Cost: $%.6f",
+                    model_id,
+                    result.get("latency_sec", 0),
+                    result.get("total_tokens", "N/A"),
+                    result.get("cost", 0))
         else:
             failed += 1
-            print(f"  FAILED - {result.get('error_message', 'Unknown error')}")
+            LOG.error("[%s] FAILED - %s", model_id, result.get("error_message", "Unknown error"))
 
         time.sleep(1)
 
-    print(f"\nBenchmark complete: {run_id}")
-    print(f"Successful: {successful}/{total_tests}, Failed: {failed}/{total_tests}")
+    total_duration = time.time() - start_time
+
+    LOG.info("=" * 60)
+    LOG.info("Benchmark complete: %s", run_id)
+    LOG.info("Duration: %.1fs", total_duration)
+    LOG.info("Results: %d/%d successful, %d failed, %d skipped",
+             successful, total_tests, failed, skipped)
+    LOG.info("=" * 60)
 
     return {
         "success": True,
@@ -249,19 +344,25 @@ def run_benchmark(
         "total_tests": total_tests,
         "successful": successful,
         "failed": failed,
+        "skipped": skipped,
+        "duration_sec": round(total_duration, 1),
         "catalog_id": catalog_id,
     }
 
 
 def benchmark_new_models(new_model_ids: list[str], benchmark_reason: str = "new_model_detected") -> dict:
+    LOG.info("Benchmarking %d new models", len(new_model_ids))
+
     catalog = load_current_catalog()
     if not catalog:
+        LOG.error("No catalog available")
         return {"success": False, "error": "No catalog available"}
 
     all_models = catalog.get("models", [])
     models_to_test = [m for m in all_models if m.get("model_id") in new_model_ids]
 
     if not models_to_test:
+        LOG.error("None of the new model IDs found in catalog")
         return {"success": False, "error": "None of the new model IDs found in catalog"}
 
     return run_benchmark(models=models_to_test, benchmark_reason=benchmark_reason)
@@ -272,11 +373,15 @@ def main():
     parser = argparse.ArgumentParser(description="Benchmark free models from OpenRouter")
     parser.add_argument("--models", nargs="+", help="Specific model IDs to benchmark")
     parser.add_argument("--prompt", help="Prompt ID to use")
-    parser.add_argument("--reason", default="manual", choices=["manual", "scheduled", "new_model_detected"],
+    parser.add_argument("--reason", default="manual",
+                        choices=["manual", "scheduled", "new_model_detected"],
                         help="Benchmark reason")
     parser.add_argument("--run-id", help="Custom run ID")
-    parser.add_argument("--new-only", action="store_true", help="Benchmark only newly discovered models")
+    parser.add_argument("--new-only", action="store_true",
+                       help="Benchmark only newly discovered models")
     args = parser.parse_args()
+
+    setup_logging()
 
     models = None
     if args.models:
