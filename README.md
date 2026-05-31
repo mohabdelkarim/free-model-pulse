@@ -10,7 +10,7 @@ Free Model Pulse automatically discovers free models from OpenRouter's Models AP
 
 - **Auto-discovery**: Dynamically discovers free models from OpenRouter on every run
 - **No hardcoded lists**: Model discovery happens entirely from the OpenRouter API
-- **Historical tracking**: Stores catalog snapshots, raw benchmark results, and aggregated metrics
+- **Historical tracking**: Stores catalog snapshots (JSON), catalog history (JSONL), raw benchmarks (CSV), and aggregated metrics (CSV)
 - **Resilient**: Handles rate limits, timeouts, and transient upstream failures
 - **Event-driven**: GitHub Actions workflows trigger benchmarks when new free models appear
 - **Clean architecture**: Separate concerns for discovery, benchmarking, aggregation, and orchestration
@@ -19,23 +19,38 @@ Free Model Pulse automatically discovers free models from OpenRouter's Models AP
 
 ```
 free-model-pulse/
-├── watch_models.py      # Model discovery module
-├── benchmark.py         # Benchmarking module
-├── analyze.py           # Aggregation and analysis module
-├── prompts.json         # Benchmark prompt definitions
+├── common.py              # Shared utilities (paths, CSV, JSON helpers)
+├── watch_models.py        # Model discovery and watcher
+├── benchmark.py           # Benchmarking module
+├── analyze.py             # Aggregation and analysis module
+├── prompts.json           # Benchmark prompt definitions
 ├── data/
-│   ├── catalogs/        # Model catalog snapshots
-│   ├── runs/            # Raw benchmark results
-│   └── derived/         # Aggregated metrics and reports
-├── .github/workflows/   # CI/CD automation
-└── .env.example         # Environment configuration
+│   ├── catalog/
+│   │   ├── current_free_models.json     # Current free model snapshot
+│   │   └── free_models_history.jsonl   # Historical catalog log
+│   ├── raw/
+│   │   └── benchmark_runs.csv           # Raw benchmark results (append-only)
+│   └── derived/
+│       └── model_index.csv             # Aggregated model metrics
+├── .github/workflows/
+│   ├── model-watch.yml   # Model discovery workflow
+│   └── benchmark.yml     # Benchmark and analysis workflow
+└── .env.example          # Environment configuration
 ```
 
 ### Data Layers
 
-1. **Catalog Snapshots** (`data/catalogs/`): Current free models with historical log
-2. **Raw Benchmark Records** (`data/runs/`): One row per model per run
-3. **Derived Index** (`data/derived/`): Aggregated metrics per model
+1. **Catalog Snapshots** (`data/catalog/`):
+   - `current_free_models.json` - Current free model snapshot
+   - `free_models_history.jsonl` - Historical catalog changes (append-only)
+
+2. **Raw Benchmark Records** (`data/raw/benchmark_runs.csv`):
+   - One row per model per run (append-only CSV)
+   - Fields: run_id, benchmark_reason, timestamp_utc, model_id, latency_sec, status, etc.
+
+3. **Derived Index** (`data/derived/model_index.csv`):
+   - Aggregated metrics per model
+   - Fields: total_runs, success_rate, latency_sec_avg/median/p95, tokens_per_sec_avg, etc.
 
 ## Setup
 
@@ -47,16 +62,10 @@ free-model-pulse/
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/free-model-pulse.git
 cd free-model-pulse
-
-# Install dependencies
 pip install requests
-
-# Copy environment template
 cp .env.example .env
-
 # Edit .env with your API key
 ```
 
@@ -69,6 +78,7 @@ cp .env.example .env
 | `OPENROUTER_SITE_EMAIL` | Your email for OpenRouter requests | No |
 | `BENCHMARK_TIMEOUT_SEC` | Request timeout in seconds (default: 120) | No |
 | `BENCHMARK_MAX_RETRIES` | Max retries on failure (default: 3) | No |
+| `BENCHMARK_PROMPT_FILE` | Path to prompts.json (default: prompts.json) | No |
 
 ## Usage
 
@@ -78,50 +88,51 @@ cp .env.example .env
 python watch_models.py
 ```
 
-Add `--watch` for continuous monitoring:
-```bash
-python watch_models.py --watch --interval 60
-```
+Options:
+- `--watch` - Run continuously in watch mode
+- `--interval N` - Check every N minutes (default: 60)
+- `--force` - Force re-fetch even if unchanged
 
 ### Run Benchmarks
 
 ```bash
-# Benchmark all current free models
 python benchmark.py
-
-# Only benchmark newly discovered models
-python benchmark.py --new-only
-
-# Use specific prompts
-python benchmark.py --prompts reasoning_simple code_simple
 ```
+
+Options:
+- `--reason` - Benchmark reason: `manual`, `scheduled`, or `new_model_detected`
+- `--prompt` - Prompt ID to use
+- `--new-only` - Benchmark only current models
 
 ### Analyze Results
 
 ```bash
-# Generate aggregated metrics
-python analyze.py --window 30 --min-runs 3
-
-# Generate summary report
-python analyze.py --report
-
-# List all benchmark runs
-python analyze.py --list-runs
+python analyze.py --min-runs 3
 ```
 
-## Expected Metrics
+Options:
+- `--min-runs N` - Minimum runs for aggregation (default: 3)
+- `--stats` - Show summary statistics
 
-Each benchmark result captures:
+## Benchmark Log Fields
+
+Each benchmark run records:
 
 | Field | Description |
 |-------|-------------|
-| `timestamp` | Run timestamp |
 | `run_id` | Unique run identifier |
+| `benchmark_reason` | scheduled / new_model_detected / manual |
+| `timestamp_utc` | Run timestamp |
+| `prompt_version` | Prompt version from prompts.json |
 | `model_id` | OpenRouter model ID |
 | `canonical_family` | Provider/family name |
 | `display_name` | Human-readable model name |
 | `context_length` | Maximum context length |
 | `latency_sec` | Response latency in seconds |
+| `status` | success / error / timeout |
+| `error_message` | Error details if failed |
+| `response_id` | OpenRouter response ID |
+| `finish_reason` | Completion finish reason |
 | `prompt_tokens` | Tokens in prompt |
 | `completion_tokens` | Tokens in completion |
 | `total_tokens` | Total tokens used |
@@ -129,24 +140,36 @@ Each benchmark result captures:
 | `cache_write_tokens` | Cache write tokens (if available) |
 | `reasoning_tokens` | Reasoning tokens (if available) |
 | `cost` | Calculated cost |
-| `finish_reason` | Completion finish reason |
-| `status` | success/error/timeout |
-| `error_message` | Error details if failed |
+
+## Derived Index Fields
+
+Aggregated per model:
+
+| Field | Description |
+|-------|-------------|
+| `model_id` | OpenRouter model ID |
+| `canonical_family` | Provider/family name |
+| `display_name` | Human-readable name |
+| `context_length` | Maximum context length |
+| `total_runs` | Total benchmark runs |
+| `successful_runs` | Successful runs |
+| `failed_runs` | Failed runs |
+| `success_rate` | Success ratio |
+| `error_rate` | Error ratio |
+| `latency_sec_avg` | Average latency |
+| `latency_sec_median` | Median latency |
+| `latency_sec_p95` | 95th percentile latency |
+| `latency_sec_min` | Minimum latency |
+| `latency_sec_max` | Maximum latency |
+| `total_tokens_avg` | Average total tokens |
+| `completion_tokens_avg` | Average completion tokens |
+| `tokens_per_sec_avg` | Average tokens per second |
+| `cost_avg` | Average cost per run |
+| `cost_total` | Total cost |
+| `first_seen` | First benchmark timestamp |
+| `last_seen` | Most recent benchmark timestamp |
 
 ## GitHub Actions
-
-The project includes automated workflows:
-
-### Model Discovery Workflow
-- Runs every 6 hours (configurable)
-- Detects new/removed free models
-- Triggers benchmark workflow when changes detected
-
-### Benchmark Workflow
-- Runs daily (configurable)
-- Discovers current free models dynamically
-- Benchmarks each model with configured prompts
-- Generates aggregated analysis
 
 ### Required Secrets
 
@@ -157,6 +180,19 @@ The project includes automated workflows:
 - `OPENROUTER_SITE_URL`: Your site URL (optional but recommended)
 - `OPENROUTER_SITE_EMAIL`: Your contact email (optional)
 
+### Workflows
+
+1. **Model Watch** (every 6 hours):
+   - Polls OpenRouter for model catalog changes
+   - Detects new/removed free models
+   - Stores catalog snapshot and history
+
+2. **Benchmark & Analysis** (daily + on-demand):
+   - Discovers current free models
+   - Benchmarks each model
+   - Generates aggregated model index
+   - Commits updated data back to repo
+
 ## Design Principles
 
 1. **No hardcoded model lists**: All model discovery is dynamic from the OpenRouter API
@@ -164,8 +200,9 @@ The project includes automated workflows:
 3. **Separation of concerns**: Discovery, benchmarking, and analysis are separate modules
 4. **Raw over derived**: Raw data is preserved; derived data is always regeneratable
 5. **Fail gracefully**: One model failure doesn't crash the entire benchmark run
-6. **Deterministic files**: JSON files over opaque database state
-7. **Secrets management**: API keys never committed; `.env.example` for configuration
+6. **Deterministic files**: CSV/JSON files over opaque database state
+7. **Append-only logs**: Historical data is never overwritten
+8. **Secrets management**: API keys never committed; `.env.example` for configuration
 
 ## Contributing
 

@@ -2,10 +2,11 @@
 .env
 *.env.local
 
-# Data (keep structure, ignore contents)
-data/catalogs/*.json
-data/runs/*.json
-data/derived/*.json
+# Data files (keep structure, ignore contents)
+data/catalog/*.json
+data/catalog/*.jsonl
+data/raw/*.csv
+data/derived/*.csv
 
 # Keep these pattern files
 !.gitkeep

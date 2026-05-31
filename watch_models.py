@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Model Discovery Module
+Model Discovery and Watcher Module.
 
 Dynamically discovers free models from OpenRouter API.
 Handles rate limits, transient failures, and model churn.
+Detects new/removed models and stores catalog history.
 """
 
 import os
@@ -15,17 +16,21 @@ from datetime import datetime, timezone
 from typing import Optional
 from pathlib import Path
 
+from common import (
+    CATALOG_DIR,
+    CURRENT_MODELS_FILE,
+    HISTORY_FILE,
+    load_json,
+    save_json,
+    append_jsonl,
+    now_iso,
+)
+
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_DELAY = 5
-
-
-def get_default_dirs() -> tuple[Path, Path]:
-    catalogs_dir = Path(os.getenv("CATALOGS_DIR", "data/catalogs"))
-    catalogs_dir.mkdir(parents=True, exist_ok=True)
-    return catalogs_dir
 
 
 def get_api_headers() -> dict:
@@ -75,14 +80,39 @@ def fetch_models(retries: int = MAX_RETRIES) -> Optional[dict]:
     return None
 
 
+def is_benchmarkable(model: dict) -> tuple[bool, str]:
+    model_id = model.get("id", "")
+
+    if "free" in model_id.lower() and "/" not in model_id:
+        return False, "id contains 'free' without provider prefix"
+
+    if model.get("disabled", False):
+        return False, "model is disabled"
+
+    if model.get("hidden", False):
+        return False, "model is hidden"
+
+    pricing = model.get("pricing", {})
+    prompt_price = float(pricing.get("prompt", 0))
+    completion_price = float(pricing.get("completion", 0))
+    if prompt_price > 0 or completion_price > 0:
+        return False, "model is not free"
+
+    supported_types = model.get("supported_parameters", [])
+    if "messages" not in supported_types and "prompt" not in str(model.get("capabilities", {})):
+        return False, "model does not support messages API"
+
+    return True, ""
+
+
 def filter_free_models(models_data: dict) -> list[dict]:
     free_models = []
     for model in models_data.get("data", []):
-        pricing = model.get("pricing", {})
-        prompt_price = float(pricing.get("prompt", 0))
-        completion_price = float(pricing.get("completion", 0))
-        if prompt_price == 0 and completion_price == 0:
+        is_free, reason = is_benchmarkable(model)
+        if is_free:
             free_models.append(model)
+        else:
+            print(f"  Excluded {model.get('id')}: {reason}")
     return free_models
 
 
@@ -96,12 +126,11 @@ def normalize_model(model: dict) -> dict:
         "display_name": model.get("name", model_id),
         "canonical_family": canonical_family,
         "context_length": model.get("context_length"),
-        "description": model.get("description", "")[:500],
+        "description": (model.get("description") or "")[:500],
         "pricing": model.get("pricing", {}),
         "top_provider": model.get("top_provider", {}),
         "created": model.get("created"),
-        "disabled": model.get("disabled", False),
-        "hidden": model.get("hidden", False),
+        "supported_parameters": model.get("supported_parameters", []),
     }
 
 
@@ -111,110 +140,134 @@ def generate_catalog_id(models: list[dict]) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:12]
 
 
-def save_catalog_snapshot(models: list[dict], catalogs_dir: Path) -> tuple[str, Path]:
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    catalog_id = generate_catalog_id(models)
+def load_current_catalog() -> Optional[dict]:
+    return load_json(CURRENT_MODELS_FILE)
 
-    snapshot = {
+
+def save_current_catalog(models: list[dict], catalog_id: str) -> None:
+    timestamp = now_iso()
+    normalized = [normalize_model(m) for m in models]
+
+    catalog = {
         "catalog_id": catalog_id,
         "timestamp": timestamp,
-        "discovered_at": datetime.now(timezone.utc).isoformat(),
-        "total_models": len(models),
-        "models": [normalize_model(m) for m in models],
+        "total_models": len(normalized),
+        "models": normalized,
     }
 
-    filename = f"catalog_{timestamp}_{catalog_id}.json"
-    filepath = catalogs_dir / filename
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(snapshot, f, indent=2, ensure_ascii=False)
+    save_json(CURRENT_MODELS_FILE, catalog)
 
-    latest_link = catalogs_dir / "latest.json"
-    with open(latest_link, "w", encoding="utf-8") as f:
-        json.dump(snapshot, f, indent=2, ensure_ascii=False)
+    history_entry = {
+        "catalog_id": catalog_id,
+        "timestamp": timestamp,
+        "action": "snapshot",
+        "total_models": len(normalized),
+        "model_ids": sorted([m["model_id"] for m in normalized]),
+    }
+    append_jsonl(HISTORY_FILE, history_entry)
 
-    print(f"Saved catalog snapshot: {filename}")
-    return catalog_id, filepath
 
+def detect_changes(old_catalog: Optional[dict], new_models: list[dict]) -> dict:
+    if old_catalog is None:
+        return {
+            "has_changes": True,
+            "new_models": [m["model_id"] for m in new_models],
+            "removed_models": [],
+            "total_new": len(new_models),
+            "total_removed": 0,
+        }
 
-def detect_model_changes(old_models: list[dict], new_models: list[dict]) -> dict:
-    old_ids = set(m["model_id"] for m in old_models)
-    new_ids = set(m["model_id"] for m in new_models)
+    old_models = old_catalog.get("models", [])
+    old_ids = set(m["model_id"] for m in old_models if isinstance(m, dict))
+    new_ids = set(m["model_id"] for m in new_models if isinstance(m, dict))
 
-    added = list(new_ids - old_ids)
-    removed = list(old_ids - new_ids)
-    unchanged = list(new_ids & old_ids)
+    added = sorted(new_ids - old_ids)
+    removed = sorted(old_ids - new_ids)
 
     return {
-        "added_models": added,
+        "has_changes": bool(added or removed),
+        "new_models": added,
         "removed_models": removed,
-        "unchanged_models": unchanged,
-        "total_added": len(added),
+        "total_new": len(added),
         "total_removed": len(removed),
     }
 
 
-def load_latest_catalog(catalogs_dir: Path) -> Optional[dict]:
-    latest_path = catalogs_dir / "latest.json"
-    if latest_path.exists():
-        with open(latest_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return None
-
-
-def discover_models(catalogs_dir: Optional[Path] = None, force: bool = False) -> dict:
-    if catalogs_dir is None:
-        catalogs_dir = get_default_dirs()[0]
-
-    catalogs_dir.mkdir(parents=True, exist_ok=True)
-
+def discover_models(force: bool = False) -> dict:
     print("Fetching models from OpenRouter...")
     models_data = fetch_models()
     if not models_data:
-        print("Failed to fetch models from OpenRouter")
         return {"success": False, "error": "API fetch failed"}
 
-    free_models = filter_free_models(models_data)
-    print(f"Found {len(free_models)} free models out of {len(models_data.get('data', []))} total")
+    all_models = models_data.get("data", [])
+    free_models = filter_free_models(all_models)
+
+    print(f"Found {len(free_models)} benchmarkable free models out of {len(all_models)} total")
 
     if len(free_models) == 0:
         print("WARNING: No free models found. OpenRouter catalog may have changed.")
 
-    new_catalog_id, snapshot_path = save_catalog_snapshot(free_models, catalogs_dir)
+    catalog_id = generate_catalog_id(free_models)
 
-    old_catalog = load_latest_catalog(catalogs_dir)
-    old_models = old_catalog.get("models", []) if old_catalog else []
-    changes = detect_model_changes(old_models, free_models)
+    old_catalog = load_current_catalog()
+    old_catalog_id = old_catalog.get("catalog_id") if old_catalog else None
+
+    if catalog_id == old_catalog_id and not force:
+        print("Catalog unchanged. No action needed.")
+        return {
+            "success": True,
+            "catalog_id": catalog_id,
+            "has_changes": False,
+            "new_models": [],
+            "removed_models": [],
+            "total_models": len(free_models),
+        }
+
+    changes = detect_changes(old_catalog, free_models)
+
+    history_entry = {
+        "catalog_id": catalog_id,
+        "timestamp": now_iso(),
+        "action": "update" if old_catalog else "initial",
+        "changes": changes,
+        "total_models": len(free_models),
+    }
+    append_jsonl(HISTORY_FILE, history_entry)
+
+    save_current_catalog(free_models, catalog_id)
+
+    print(f"Catalog saved: {catalog_id}")
+    if changes["has_changes"]:
+        if changes["total_new"] > 0:
+            print(f"New models: {changes['total_new']}")
+            for m in changes["new_models"]:
+                print(f"  + {m}")
+        if changes["total_removed"] > 0:
+            print(f"Removed models: {changes['total_removed']}")
+            for m in changes["removed_models"]:
+                print(f"  - {m}")
 
     return {
         "success": True,
-        "catalog_id": new_catalog_id,
-        "snapshot_path": str(snapshot_path),
+        "catalog_id": catalog_id,
+        "has_changes": changes["has_changes"],
+        "new_models": changes["new_models"],
+        "removed_models": changes["removed_models"],
         "total_models": len(free_models),
-        "changes": changes,
     }
 
 
 def watch_models(interval_minutes: int = 60) -> None:
-    catalogs_dir = get_default_dirs()[0]
-
     print(f"Starting model watcher (checking every {interval_minutes} minutes)...")
     print("Press Ctrl+C to stop")
 
     try:
         while True:
-            result = discover_models(catalogs_dir)
+            result = discover_models()
             if result["success"]:
-                changes = result["changes"]
-                if changes["total_added"] > 0:
-                    print(f"\nNEW MODELS DETECTED: {changes['total_added']}")
-                    for model_id in changes["added_models"]:
-                        print(f"  + {model_id}")
-                if changes["total_removed"] > 0:
-                    print(f"\nMODELS REMOVED: {changes['total_removed']}")
-                    for model_id in changes["removed_models"]:
-                        print(f"  - {model_id}")
-                if changes["total_added"] == 0 and changes["total_removed"] == 0:
-                    print("No model changes detected.")
+                if result["has_changes"] and result["new_models"]:
+                    print(f"\nNEW MODELS DETECTED: {len(result['new_models'])}")
+                    print("Benchmark trigger available. Use --trigger-benchmark flag.")
             else:
                 print(f"Watcher error: {result.get('error')}")
 
@@ -229,7 +282,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Discover free models from OpenRouter")
     parser.add_argument("--watch", action="store_true", help="Run continuously in watch mode")
-    parser.add_argument("--interval", type=int, default=60, help="Watch interval in minutes (default: 60)")
+    parser.add_argument("--interval", type=int, default=60, help="Watch interval in minutes")
     parser.add_argument("--force", action="store_true", help="Force re-fetch even if unchanged")
     args = parser.parse_args()
 
