@@ -135,7 +135,7 @@ def aggregate_model_metrics(rows: list[dict], min_runs: int = 3) -> list[dict]:
         if data["successes"] >= min_runs:
             aggregated.append(agg)
 
-    aggregated.sort(key=lambda x: (x["success_rate"], x.get("latency_sec_avg") or 9999), reverse=True)
+    aggregated.sort(key=lambda x: (-x["success_rate"], x.get("latency_sec_avg") or 9999))
     return aggregated
 
 

@@ -298,3 +298,6 @@ def load_prompts() -> dict:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"version": "unknown", "prompts": [], "default_prompt_id": None}
+
+
+ensure_csv = ensure_csv_header

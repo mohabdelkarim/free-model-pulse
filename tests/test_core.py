@@ -77,7 +77,7 @@ class TestModelFiltering(unittest.TestCase):
             "pricing": {"prompt": 0, "completion": 0},
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertTrue(is_free)
 
     def test_excludes_router_free(self):
@@ -86,9 +86,9 @@ class TestModelFiltering(unittest.TestCase):
             "pricing": {"prompt": 0, "completion": 0},
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
-        self.assertIn("'free'", reason)
+        self.assertIn("router", reason)
 
     def test_excludes_model_with_price(self):
         model = {
@@ -96,7 +96,7 @@ class TestModelFiltering(unittest.TestCase):
             "pricing": {"prompt": 0.00001, "completion": 0.00002},
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("not free", reason)
 
@@ -107,7 +107,7 @@ class TestModelFiltering(unittest.TestCase):
             "disabled": True,
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("disabled", reason)
 
@@ -118,7 +118,7 @@ class TestModelFiltering(unittest.TestCase):
             "hidden": True,
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("hidden", reason)
 
@@ -128,7 +128,7 @@ class TestModelFiltering(unittest.TestCase):
             "pricing": {"prompt": 0, "completion": 0},
             "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("empty", reason)
 
@@ -138,7 +138,7 @@ class TestModelFiltering(unittest.TestCase):
             "pricing": {"prompt": 0, "completion": 0},
             "supported_parameters": ["prompt"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = TestModelFiltering.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("messages", reason)
 
@@ -156,7 +156,7 @@ class TestModelNormalization(unittest.TestCase):
             "context_length": 32000,
             "description": "A great model",
         }
-        result = self.normalize_model(model)
+        result = TestModelNormalization.normalize_model(model)
         self.assertEqual(result["model_id"], "google/gemini-pro")
         self.assertEqual(result["display_name"], "Gemini Pro")
         self.assertEqual(result["canonical_family"], "google")
@@ -167,7 +167,7 @@ class TestModelNormalization(unittest.TestCase):
             "id": "unknown-model",
             "name": "Unknown Model",
         }
-        result = self.normalize_model(model)
+        result = TestModelNormalization.normalize_model(model)
         self.assertEqual(result["canonical_family"], "unknown")
 
     def test_normalize_model_truncates_description(self):
@@ -175,7 +175,7 @@ class TestModelNormalization(unittest.TestCase):
             "id": "test/model",
             "description": "x" * 1000,
         }
-        result = self.normalize_model(model)
+        result = TestModelNormalization.normalize_model(model)
         self.assertEqual(len(result["description"]), 500)
 
     def test_normalize_model_handles_none_description(self):
@@ -183,7 +183,7 @@ class TestModelNormalization(unittest.TestCase):
             "id": "test/model",
             "description": None,
         }
-        result = self.normalize_model(model)
+        result = TestModelNormalization.normalize_model(model)
         self.assertEqual(result["description"], "")
 
 
@@ -198,7 +198,7 @@ class TestDiffDetection(unittest.TestCase):
             {"model_id": "model/1"},
             {"model_id": "model/2"},
         ]
-        result = self.detect_changes(None, new_models)
+        result = TestDiffDetection.detect_changes(None, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], ["model/1", "model/2"])
         self.assertEqual(result["removed_models"], [])
@@ -211,7 +211,7 @@ class TestDiffDetection(unittest.TestCase):
             {"model_id": "model/2"},
             {"model_id": "model/3"},
         ]
-        result = self.detect_changes(old_catalog, new_models)
+        result = TestDiffDetection.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(sorted(result["new_models"]), ["model/2", "model/3"])
         self.assertEqual(result["removed_models"], [])
@@ -220,7 +220,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_removed_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = TestDiffDetection.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], ["model/2"])
@@ -229,7 +229,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_no_changes(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/2"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = TestDiffDetection.detect_changes(old_catalog, new_models)
         self.assertFalse(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], [])
@@ -237,10 +237,10 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_handles_non_dict_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, None, "invalid"]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/3"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = TestDiffDetection.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], ["model/3"])
-        self.assertEqual(result["removed_models"], ["model/2"])
+        self.assertEqual(result["removed_models"], [])
 
 
 class TestAggregateCalculations(unittest.TestCase):
@@ -258,7 +258,7 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "150", "cost": "0.0", "run_id": "r2",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
+        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["model_id"], "m1")
         self.assertEqual(result[0]["total_runs"], 2)
@@ -276,7 +276,7 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "0", "cost": "0.0", "run_id": "r2",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
+        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["total_runs"], 2)
         self.assertEqual(result[0]["successful_runs"], 1)
@@ -289,11 +289,11 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "100", "cost": "0.0", "run_id": "r1",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=3)
+        result = TestAggregateCalculations.aggregate(rows, min_runs=3)
         self.assertEqual(len(result), 0)
 
     def test_aggregate_handles_empty_rows(self):
-        result = self.aggregate([], min_runs=1)
+        result = TestAggregateCalculations.aggregate([], min_runs=1)
         self.assertEqual(result, [])
 
     def test_aggregate_sorts_by_success_rate_and_latency(self):
@@ -308,7 +308,7 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "100", "cost": "0.0", "run_id": "r1",
              "canonical_family": "test", "display_name": "M3", "timestamp_utc": "2024-01-01T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
+        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
         self.assertEqual(result[0]["model_id"], "m2")
         self.assertEqual(result[1]["model_id"], "m3")
         self.assertEqual(result[2]["model_id"], "m1")

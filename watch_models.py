@@ -36,6 +36,12 @@ RETRY_DELAY_BASE = 2
 MAX_RETRY_DELAY = 60
 RETRY_BUDGET_SEC = 120
 
+OPENROUTER_ROUTER_PATTERNS = [
+    "openrouter/free",
+    "openrouter/auto",
+    "openrouter/pareto-code",
+    "openrouter/bodybuilder",
+]
 
 LOG = get_logger("watch_models")
 
@@ -62,7 +68,7 @@ def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> fl
         return min(retry_after, MAX_RETRY_DELAY)
 
     delay = RETRY_DELAY_BASE * (2 ** attempt)
-    jitter = delay * 0.1 * (hashlib.md5(str(time.time()).encode()).hexdigest()[0:2], int.from_bytes) % 10)
+    jitter = delay * 0.1 * (int(hashlib.md5(str(time.time()).encode()).hexdigest()[:2], 16) % 10)
     return min(delay + jitter, MAX_RETRY_DELAY)
 
 
@@ -144,6 +150,10 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
 
     if "free" in model_id.lower() and "/" not in model_id:
         return False, "id contains 'free' without provider prefix"
+
+    for router_pattern in OPENROUTER_ROUTER_PATTERNS:
+        if model_id.lower() == router_pattern.lower():
+            return False, f"model matches router pattern '{router_pattern}'"
 
     if model.get("disabled", False):
         return False, "model is disabled"
