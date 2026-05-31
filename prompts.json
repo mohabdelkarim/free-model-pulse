@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "prompts": [
+    {
+      "id": "reasoning_simple",
+      "category": "reasoning",
+      "description": "Simple arithmetic reasoning",
+      "text": "If a train travels 360 kilometers in 4 hours, what is its average speed in kilometers per hour? Answer with just the number."
+    },
+    {
+      "id": "reasoning_chain",
+      "category": "reasoning",
+      "description": "Multi-step logical reasoning",
+      "text": "Alice has 3 apples. Bob gives her 2 more apples. Then Alice gives Charlie 4 apples. How many apples does Alice have now? Show your work."
+    },
+    {
+      "id": "factual_recall",
+      "category": "knowledge",
+      "description": "Basic factual question",
+      "text": "What is the capital city of Japan? Answer with just the city name."
+    },
+    {
+      "id": "writing_creative",
+      "category": "writing",
+      "description": "Creative writing task",
+      "text": "Write a haiku about the ocean. Only output the haiku, nothing else."
+    },
+    {
+      "id": "code_simple",
+      "category": "coding",
+      "description": "Simple code generation",
+      "text": "Write a Python function called 'add' that takes two numbers and returns their sum. Only output the function code, nothing else."
+    },
+    {
+      "id": "summarization",
+      "category": "comprehension",
+      "description": "Text summarization",
+      "text": "Summarize the following text in exactly one sentence: The quick brown fox jumps over the lazy dog. This classic pangram contains every letter of the English alphabet at least once. It is frequently used in typography to display font samples."
+    }
+  ],
+  "default_prompt_id": "reasoning_simple"
+}

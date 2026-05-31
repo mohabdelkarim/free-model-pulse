@@ -1,0 +1,98 @@
+name: Benchmark and Analysis
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      prompt_ids:
+        description: 'Prompt IDs to use (space separated, optional)'
+        required: false
+        default: ''
+      new_only:
+        description: 'Only benchmark newly discovered models'
+        required: false
+        default: 'false'
+  repository_dispatch:
+    types: [new-models-detected]
+
+env:
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
+  OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Restore catalog
+        run: |
+          python watch_models.py
+
+      - name: Run benchmark
+        run: |
+          python benchmark.py ${{ inputs.new_only == 'true' && '--new-only' || '' }} ${{ inputs.prompt_ids && format('--prompts {0}', inputs.prompt_ids) || '' }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-runs
+          path: data/runs/
+          retention-days: 30
+
+  analyze:
+    needs: benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-runs
+          path: data/runs/
+
+      - name: Generate analysis
+        run: |
+          python analyze.py --window 30 --min-runs 3
+
+      - name: Generate report
+        run: |
+          python analyze.py --report
+
+      - name: Upload derived index
+        uses: actions/upload-artifact@v4
+        with:
+          name: derived-index
+          path: data/derived/latest.json
+          retention-days: 90
+
+      - name: Upload summary report
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-report
+          path: data/derived/summary_report.md
+          retention-days: 90

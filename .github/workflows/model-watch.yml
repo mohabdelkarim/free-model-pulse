@@ -1,0 +1,70 @@
+name: Model Discovery
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force re-fetch even if unchanged'
+        required: false
+        default: 'false'
+
+jobs:
+  watch-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests
+
+      - name: Discover models
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
+          OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
+        run: |
+          python watch_models.py --force ${{ inputs.force }}
+
+      - name: Upload catalog snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-snapshot
+          path: data/catalogs/latest.json
+          retention-days: 7
+
+  detect-changes:
+    needs: watch-models
+    runs-on: ubuntu-latest
+    outputs:
+      new_models: ${{ steps.detect.outputs.new_models }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download latest catalog
+        uses: actions/download-artifact@v4
+        with:
+          name: catalog-snapshot
+
+      - name: Detect new models
+        id: detect
+        run: |
+          python -c "
+          import json
+          with open('latest.json', 'r') as f:
+              catalog = json.load(f)
+          models = catalog.get('models', [])
+          print(f'Total free models: {len(models)}')
+          for m in models:
+              print(f\"  - {m['model_id']}\")
+          "
+          echo "new_models=${{ toJSON(steps.detect.outputs.new_models) }}" >> $GITHUB_OUTPUT
