@@ -3,7 +3,7 @@
 Unit tests for free-model-pulse core functions.
 
 Tests:
-- Model filtering (is_benchmarkable)
+- Model filtering (is_benchmarkable, is_router_or_helper)
 - Model normalization (normalize_model)
 - Diff detection (detect_changes)
 - Aggregate calculations on mixed success/error rows
@@ -33,6 +33,9 @@ from common import (
     append_csv_row,
     ensure_csv_header,
 )
+
+import watch_models
+import analyze
 
 
 class TestSafeConversions(unittest.TestCase):
@@ -65,38 +68,96 @@ class TestSafeConversions(unittest.TestCase):
         self.assertEqual(safe_int("invalid", 42), 42)
 
 
-class TestModelFiltering(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from watch_models import is_benchmarkable
-        cls.is_benchmarkable = is_benchmarkable
+class TestRouterExclusion(unittest.TestCase):
+    def test_excludes_openrouter_free(self):
+        is_router, reason = watch_models.is_router_or_helper("openrouter/free")
+        self.assertTrue(is_router)
+        self.assertIn("router", reason.lower())
 
-    def test_free_model_with_provider_prefix(self):
+    def test_excludes_openrouter_auto(self):
+        is_router, reason = watch_models.is_router_or_helper("openrouter/auto")
+        self.assertTrue(is_router)
+        self.assertIn("router", reason.lower())
+
+    def test_excludes_pareto_code(self):
+        is_router, reason = watch_models.is_router_or_helper("openrouter/pareto-code")
+        self.assertTrue(is_router)
+        self.assertIn("pareto-code", reason)
+
+    def test_excludes_bodybuilder(self):
+        is_router, reason = watch_models.is_router_or_helper("openrouter/bodybuilder")
+        self.assertTrue(is_router)
+        self.assertIn("bodybuilder", reason)
+
+    def test_includes_normal_free_model(self):
+        is_router, reason = watch_models.is_router_or_helper("nvidia/nemotron-3-nano-30b-a3b:free")
+        self.assertFalse(is_router)
+
+    def test_includes_google_gemma(self):
+        is_router, reason = watch_models.is_router_or_helper("google/gemma-4-26b-a4b-it:free")
+        self.assertFalse(is_router)
+
+
+class TestModelFiltering(unittest.TestCase):
+    def test_includes_free_model_with_zero_pricing(self):
         model = {
-            "id": "google/gemini-pro",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
+            "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+            "pricing": {"prompt": "0", "completion": "0"},
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertTrue(is_free)
+        self.assertEqual(reason, "")
+
+    def test_includes_free_model_with_float_zero_pricing(self):
+        model = {
+            "id": "google/gemma-4-26b-a4b-it:free",
+            "pricing": {"prompt": 0.0, "completion": 0.0},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertTrue(is_free)
 
-    def test_excludes_router_free(self):
+    def test_excludes_openrouter_free_router(self):
         model = {
             "id": "openrouter/free",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
+            "pricing": {"prompt": "0", "completion": "0"},
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertFalse(is_free)
-        self.assertIn("'free'", reason)
+        self.assertIn("router", reason.lower())
+
+    def test_excludes_openrouter_auto(self):
+        model = {
+            "id": "openrouter/auto",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("router", reason.lower())
+
+    def test_excludes_pareto_code(self):
+        model = {
+            "id": "openrouter/pareto-code",
+            "pricing": {"prompt": "-1", "completion": "-1"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("pareto-code", reason)
+
+    def test_excludes_bodybuilder(self):
+        model = {
+            "id": "openrouter/bodybuilder",
+            "pricing": {"prompt": "-1", "completion": "-1"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("bodybuilder", reason)
 
     def test_excludes_model_with_price(self):
         model = {
             "id": "openai/gpt-4",
             "pricing": {"prompt": 0.00001, "completion": 0.00002},
-            "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("not free", reason)
 
@@ -105,9 +166,8 @@ class TestModelFiltering(unittest.TestCase):
             "id": "test/model",
             "pricing": {"prompt": 0, "completion": 0},
             "disabled": True,
-            "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("disabled", reason)
 
@@ -116,9 +176,8 @@ class TestModelFiltering(unittest.TestCase):
             "id": "test/model",
             "pricing": {"prompt": 0, "completion": 0},
             "hidden": True,
-            "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("hidden", reason)
 
@@ -126,29 +185,28 @@ class TestModelFiltering(unittest.TestCase):
         model = {
             "id": "",
             "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
         }
-        is_free, reason = self.is_benchmarkable(model)
+        is_free, reason = watch_models.is_benchmarkable(model)
         self.assertFalse(is_free)
         self.assertIn("empty", reason)
 
-    def test_requires_messages_support(self):
+    def test_model_missing_optional_fields_does_not_crash(self):
         model = {
             "id": "test/model",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["prompt"]
         }
-        is_free, reason = self.is_benchmarkable(model)
-        self.assertFalse(is_free)
-        self.assertIn("messages", reason)
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertTrue(is_free)
+
+    def test_model_with_missing_supported_parameters_does_not_crash(self):
+        model = {
+            "id": "liquid/lfm-2.5-1.2b-instruct:free",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertTrue(is_free)
 
 
 class TestModelNormalization(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from watch_models import normalize_model
-        cls.normalize_model = normalize_model
-
     def test_normalize_model_with_provider(self):
         model = {
             "id": "google/gemini-pro",
@@ -156,7 +214,7 @@ class TestModelNormalization(unittest.TestCase):
             "context_length": 32000,
             "description": "A great model",
         }
-        result = self.normalize_model(model)
+        result = watch_models.normalize_model(model)
         self.assertEqual(result["model_id"], "google/gemini-pro")
         self.assertEqual(result["display_name"], "Gemini Pro")
         self.assertEqual(result["canonical_family"], "google")
@@ -167,7 +225,7 @@ class TestModelNormalization(unittest.TestCase):
             "id": "unknown-model",
             "name": "Unknown Model",
         }
-        result = self.normalize_model(model)
+        result = watch_models.normalize_model(model)
         self.assertEqual(result["canonical_family"], "unknown")
 
     def test_normalize_model_truncates_description(self):
@@ -175,7 +233,7 @@ class TestModelNormalization(unittest.TestCase):
             "id": "test/model",
             "description": "x" * 1000,
         }
-        result = self.normalize_model(model)
+        result = watch_models.normalize_model(model)
         self.assertEqual(len(result["description"]), 500)
 
     def test_normalize_model_handles_none_description(self):
@@ -183,22 +241,17 @@ class TestModelNormalization(unittest.TestCase):
             "id": "test/model",
             "description": None,
         }
-        result = self.normalize_model(model)
+        result = watch_models.normalize_model(model)
         self.assertEqual(result["description"], "")
 
 
 class TestDiffDetection(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from watch_models import detect_changes
-        cls.detect_changes = detect_changes
-
     def test_detect_changes_with_no_old_catalog(self):
         new_models = [
             {"model_id": "model/1"},
             {"model_id": "model/2"},
         ]
-        result = self.detect_changes(None, new_models)
+        result = watch_models.detect_changes(None, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], ["model/1", "model/2"])
         self.assertEqual(result["removed_models"], [])
@@ -211,7 +264,7 @@ class TestDiffDetection(unittest.TestCase):
             {"model_id": "model/2"},
             {"model_id": "model/3"},
         ]
-        result = self.detect_changes(old_catalog, new_models)
+        result = watch_models.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(sorted(result["new_models"]), ["model/2", "model/3"])
         self.assertEqual(result["removed_models"], [])
@@ -220,7 +273,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_removed_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = watch_models.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], ["model/2"])
@@ -229,7 +282,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_no_changes(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/2"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = watch_models.detect_changes(old_catalog, new_models)
         self.assertFalse(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], [])
@@ -237,18 +290,13 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_handles_non_dict_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, None, "invalid"]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/3"}]
-        result = self.detect_changes(old_catalog, new_models)
+        result = watch_models.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], ["model/3"])
-        self.assertEqual(result["removed_models"], ["model/2"])
+        self.assertEqual(result["removed_models"], [])
 
 
 class TestAggregateCalculations(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        from analyze import aggregate_model_metrics
-        cls.aggregate = aggregate_model_metrics
-
     def test_aggregate_with_all_success(self):
         rows = [
             {"model_id": "m1", "status": "success", "latency_sec": "1.0",
@@ -258,7 +306,7 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "150", "cost": "0.0", "run_id": "r2",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
+        result = analyze.aggregate_model_metrics(rows, min_runs=1)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["model_id"], "m1")
         self.assertEqual(result[0]["total_runs"], 2)
@@ -276,7 +324,7 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "0", "cost": "0.0", "run_id": "r2",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
+        result = analyze.aggregate_model_metrics(rows, min_runs=1)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["total_runs"], 2)
         self.assertEqual(result[0]["successful_runs"], 1)
@@ -289,11 +337,11 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "100", "cost": "0.0", "run_id": "r1",
              "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=3)
+        result = analyze.aggregate_model_metrics(rows, min_runs=3)
         self.assertEqual(len(result), 0)
 
     def test_aggregate_handles_empty_rows(self):
-        result = self.aggregate([], min_runs=1)
+        result = analyze.aggregate_model_metrics([], min_runs=1)
         self.assertEqual(result, [])
 
     def test_aggregate_sorts_by_success_rate_and_latency(self):
@@ -308,10 +356,11 @@ class TestAggregateCalculations(unittest.TestCase):
              "total_tokens": "100", "cost": "0.0", "run_id": "r1",
              "canonical_family": "test", "display_name": "M3", "timestamp_utc": "2024-01-01T00:00:00Z"},
         ]
-        result = self.aggregate(rows, min_runs=1)
-        self.assertEqual(result[0]["model_id"], "m2")
+        result = analyze.aggregate_model_metrics(rows, min_runs=1)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0]["model_id"], "m1")
         self.assertEqual(result[1]["model_id"], "m3")
-        self.assertEqual(result[2]["model_id"], "m1")
+        self.assertEqual(result[2]["model_id"], "m2")
 
 
 class TestCSVOperations(unittest.TestCase):

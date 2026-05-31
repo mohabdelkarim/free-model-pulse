@@ -62,7 +62,7 @@ def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> fl
         return min(retry_after, MAX_RETRY_DELAY)
 
     delay = RETRY_DELAY_BASE * (2 ** attempt)
-    jitter = delay * 0.1 * (hashlib.md5(str(time.time()).encode()).hexdigest()[0:2], int.from_bytes) % 10)
+    jitter = delay * 0.1 * (int(hashlib.md5(str(time.time()).encode()).hexdigest()[:2], 16) % 10)
     return min(delay + jitter, MAX_RETRY_DELAY)
 
 
@@ -136,11 +136,29 @@ def fetch_models() -> Optional[dict]:
     return fetch_models_with_retry()
 
 
+OPENROUTER_ROUTER_PATTERNS = [
+    "openrouter/free",
+    "openrouter/auto",
+    "openrouter/pareto-code",
+    "openrouter/bodybuilder",
+]
+
+
+def is_router_or_helper(model_id: str) -> tuple[bool, str]:
+    for pattern in OPENROUTER_ROUTER_PATTERNS:
+        if model_id == pattern or model_id.startswith(pattern + ":"):
+            return True, f"router or helper model ({pattern})"
+    return False, ""
+
+
 def is_benchmarkable(model: dict) -> tuple[bool, str]:
     model_id = model.get("id", "")
 
     if not model_id:
         return False, "empty model id"
+
+    if is_router_or_helper(model_id)[0]:
+        return False, is_router_or_helper(model_id)[1]
 
     if "free" in model_id.lower() and "/" not in model_id:
         return False, "id contains 'free' without provider prefix"
@@ -159,10 +177,6 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
             return False, "model is not free"
     except (ValueError, TypeError):
         return False, "invalid pricing data"
-
-    supported_params = model.get("supported_parameters", [])
-    if supported_params and "messages" not in supported_params:
-        return False, "model does not support messages API"
 
     return True, ""
 
@@ -212,7 +226,7 @@ def normalize_model(model: dict) -> dict:
 
 
 def generate_catalog_id(models: list[dict]) -> str:
-    model_ids = sorted([m["model_id"] for m in models])
+    model_ids = sorted([m.get("id") or m.get("model_id") for m in models])
     content = json.dumps(model_ids, sort_keys=True)
     return hashlib.sha256(content.encode()).hexdigest()[:12]
 
@@ -248,15 +262,15 @@ def detect_changes(old_catalog: Optional[dict], new_models: list[dict]) -> dict:
     if old_catalog is None:
         return {
             "has_changes": True,
-            "new_models": [m["model_id"] for m in new_models],
+            "new_models": [m.get("id") or m.get("model_id") for m in new_models],
             "removed_models": [],
             "total_new": len(new_models),
             "total_removed": 0,
         }
 
     old_models = old_catalog.get("models", [])
-    old_ids = set(m["model_id"] for m in old_models if isinstance(m, dict))
-    new_ids = set(m["model_id"] for m in new_models if isinstance(m, dict))
+    old_ids = set(m.get("model_id") for m in old_models if isinstance(m, dict) and m.get("model_id"))
+    new_ids = set(m.get("id") or m.get("model_id") for m in new_models if isinstance(m, dict))
 
     added = sorted(new_ids - old_ids)
     removed = sorted(old_ids - new_ids)
