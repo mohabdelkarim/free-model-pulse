@@ -4,18 +4,25 @@ Shared utilities for free-model-pulse.
 
 Provides:
 - Path management for data directories
-- CSV append helpers
+- Atomic file operations (write to temp, then rename)
+- CSV append helpers with header safety
 - JSON/JL file helpers
 - Environment variable access
+- Structured logging helpers
 """
 
 import os
+import sys
 import csv
 import json
 import uuid
+import logging
+import tempfile
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Any
+from functools import wraps
 
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
@@ -80,69 +87,40 @@ INDEX_COLUMNS = [
 ]
 
 
+def setup_logging(level: int = logging.INFO) -> logging.Logger:
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    numeric_level = getattr(logging, log_level, logging.INFO)
+
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger("free_model_pulse")
+    logger.setLevel(numeric_level)
+    logger.handlers.clear()
+    logger.addHandler(handler)
+    logger.propagate = False
+
+    return logger
+
+
+def get_logger(name: str = "free_model_pulse") -> logging.Logger:
+    return logging.getLogger(name)
+
+
+LOG = get_logger()
+
+
 def get_run_id() -> str:
     return f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
-
-
-def load_json(path: Path) -> Optional[dict]:
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        return None
-
-
-def save_json(path: Path, data: dict) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-def append_jsonl(path: Path, record: dict) -> None:
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-
-def read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    records = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    return records
-
-
-def ensure_csv(path: Path, columns: list[str]) -> None:
-    if not path.exists():
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=columns)
-            writer.writeheader()
-
-
-def append_csv_row(path: Path, row: dict[str, Any]) -> None:
-    ensure_csv(path, list(row.keys()))
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-        writer.writerow(row)
-
-
-def read_csv(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    with open(path, "r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return list(reader)
 
 
 def safe_float(value: Any, default: float = 0.0) -> float:
@@ -161,6 +139,156 @@ def safe_int(value: Any, default: int = 0) -> int:
         return int(float(value))
     except (ValueError, TypeError):
         return default
+
+
+def atomic_json_write(path: Path, data: dict) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp"
+    )
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+
+        shutil.move(temp_path, path)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_csv_write(path: Path, rows: list[dict], columns: list[str]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp"
+    )
+
+    try:
+        with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(rows)
+            f.flush()
+            os.fsync(f.fileno())
+
+        shutil.move(temp_path, path)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
+def load_json(path: Path) -> Optional[dict]:
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def save_json(path: Path, data: dict) -> None:
+    atomic_json_write(path, data)
+
+
+def append_jsonl(path: Path, record: dict) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+
+    fd, temp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp"
+    )
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(line)
+            f.flush()
+            os.fsync(f.fileno())
+
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line)
+
+        os.unlink(temp_path)
+    except Exception:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    records = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    return records
+
+
+def ensure_csv_header(path: Path, columns: list[str]) -> bool:
+    path = Path(path)
+    if path.exists() and path.stat().st_size > 0:
+        try:
+            with open(path, "r", newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                if header and header == columns:
+                    return False
+        except (csv.Error, IOError):
+            pass
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writeheader()
+    return True
+
+
+def append_csv_row(path: Path, row: dict[str, Any]) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    columns = list(row.keys())
+    is_new = ensure_csv_header(path, columns)
+
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writerow(row)
+
+
+def read_csv(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with open(path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
 
 
 def load_prompts() -> dict:

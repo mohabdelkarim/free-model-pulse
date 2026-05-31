@@ -24,13 +24,20 @@ from common import (
     save_json,
     append_jsonl,
     now_iso,
+    setup_logging,
+    get_logger,
 )
 
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
 REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
-RETRY_DELAY = 5
+RETRY_DELAY_BASE = 2
+MAX_RETRY_DELAY = 60
+RETRY_BUDGET_SEC = 120
+
+
+LOG = get_logger("watch_models")
 
 
 def get_api_headers() -> dict:
@@ -46,42 +53,94 @@ def get_api_headers() -> dict:
     return headers
 
 
-def fetch_models(retries: int = MAX_RETRIES) -> Optional[dict]:
+def is_retryable_status(status_code: int) -> bool:
+    return status_code == 429 or (500 <= status_code < 600)
+
+
+def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> float:
+    if retry_after and retry_after > 0:
+        return min(retry_after, MAX_RETRY_DELAY)
+
+    delay = RETRY_DELAY_BASE * (2 ** attempt)
+    jitter = delay * 0.1 * (hashlib.md5(str(time.time()).encode()).hexdigest()[0:2], int.from_bytes) % 10)
+    return min(delay + jitter, MAX_RETRY_DELAY)
+
+
+def fetch_models_with_retry(retries: int = MAX_RETRIES) -> Optional[dict]:
     headers = get_api_headers()
+    start_time = time.time()
+
     for attempt in range(retries):
+        elapsed = time.time() - start_time
+        if elapsed >= RETRY_BUDGET_SEC:
+            LOG.warning("Retry budget exhausted after %.1fs", elapsed)
+            return None
+
         try:
+            LOG.debug("Fetching models (attempt %d/%d)", attempt + 1, retries)
             response = requests.get(
                 OPENROUTER_API_URL,
                 headers=headers,
                 timeout=REQUEST_TIMEOUT
             )
+
             if response.status_code == 429:
-                wait_time = int(response.headers.get("Retry-After", RETRY_DELAY * (attempt + 1)))
-                print(f"Rate limited. Waiting {wait_time}s before retry...")
-                time.sleep(wait_time)
+                retry_after = int(response.headers.get("Retry-After", 0))
+                delay = compute_backoff_delay(attempt, retry_after)
+                LOG.warning("Rate limited. Attempt %d/%d. Waiting %.1fs (budget: %.1fs remaining)",
+                           attempt + 1, retries, delay, RETRY_BUDGET_SEC - elapsed)
+                time.sleep(delay)
                 continue
+
+            if is_retryable_status(response.status_code):
+                delay = compute_backoff_delay(attempt)
+                LOG.warning("Server error %d. Attempt %d/%d. Waiting %.1fs",
+                           response.status_code, attempt + 1, retries, delay)
+                time.sleep(delay)
+                continue
+
             if response.status_code != 200:
-                print(f"API error {response.status_code}: {response.text[:200]}")
-                if attempt < retries - 1:
-                    time.sleep(RETRY_DELAY)
-                    continue
+                LOG.error("API error %d: %s", response.status_code, response.text[:200])
                 return None
+
+            LOG.info("Successfully fetched models from OpenRouter")
             return response.json()
+
         except requests.exceptions.Timeout:
-            print(f"Request timeout on attempt {attempt + 1}")
+            delay = compute_backoff_delay(attempt)
+            LOG.warning("Request timeout. Attempt %d/%d. Waiting %.1fs",
+                       attempt + 1, retries, delay)
             if attempt < retries - 1:
-                time.sleep(RETRY_DELAY)
+                time.sleep(delay)
                 continue
+            LOG.error("All retry attempts exhausted due to timeout")
+
+        except requests.exceptions.ConnectionError as e:
+            delay = compute_backoff_delay(attempt)
+            LOG.warning("Connection failed: %s. Attempt %d/%d. Waiting %.1fs",
+                       str(e)[:100], attempt + 1, retries, delay)
+            if attempt < retries - 1:
+                time.sleep(delay)
+                continue
+            LOG.error("All retry attempts exhausted due to connection error")
+
         except requests.exceptions.RequestException as e:
-            print(f"Request failed: {e}")
-            if attempt < retries - 1:
-                time.sleep(RETRY_DELAY)
-                continue
+            LOG.error("Request failed: %s", str(e)[:200])
+            return None
+
+    LOG.error("Failed to fetch models after %d attempts", retries)
     return None
+
+
+def fetch_models() -> Optional[dict]:
+    return fetch_models_with_retry()
 
 
 def is_benchmarkable(model: dict) -> tuple[bool, str]:
     model_id = model.get("id", "")
+
+    if not model_id:
+        return False, "empty model id"
 
     if "free" in model_id.lower() and "/" not in model_id:
         return False, "id contains 'free' without provider prefix"
@@ -93,26 +152,44 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
         return False, "model is hidden"
 
     pricing = model.get("pricing", {})
-    prompt_price = float(pricing.get("prompt", 0))
-    completion_price = float(pricing.get("completion", 0))
-    if prompt_price > 0 or completion_price > 0:
-        return False, "model is not free"
+    try:
+        prompt_price = float(pricing.get("prompt", 0))
+        completion_price = float(pricing.get("completion", 0))
+        if prompt_price > 0 or completion_price > 0:
+            return False, "model is not free"
+    except (ValueError, TypeError):
+        return False, "invalid pricing data"
 
-    supported_types = model.get("supported_parameters", [])
-    if "messages" not in supported_types and "prompt" not in str(model.get("capabilities", {})):
+    supported_params = model.get("supported_parameters", [])
+    if supported_params and "messages" not in supported_params:
         return False, "model does not support messages API"
 
     return True, ""
 
 
 def filter_free_models(models_data: dict) -> list[dict]:
+    all_models = models_data.get("data", [])
+    LOG.info("Filtering %d total models for benchmarkable free models", len(all_models))
+
     free_models = []
-    for model in models_data.get("data", []):
+    excluded = []
+
+    for model in all_models:
         is_free, reason = is_benchmarkable(model)
         if is_free:
             free_models.append(model)
         else:
-            print(f"  Excluded {model.get('id')}: {reason}")
+            excluded.append((model.get("id", "unknown"), reason))
+
+    if excluded:
+        LOG.debug("Excluded models: %d", len(excluded))
+        for model_id, reason in excluded[:5]:
+            LOG.debug("  - %s: %s", model_id, reason)
+        if len(excluded) > 5:
+            LOG.debug("  ... and %d more", len(excluded) - 5)
+
+    LOG.info("Found %d benchmarkable free models out of %d total",
+             len(free_models), len(all_models))
     return free_models
 
 
@@ -194,18 +271,20 @@ def detect_changes(old_catalog: Optional[dict], new_models: list[dict]) -> dict:
 
 
 def discover_models(force: bool = False) -> dict:
-    print("Fetching models from OpenRouter...")
+    LOG.info("Starting model discovery")
+
     models_data = fetch_models()
     if not models_data:
+        LOG.error("Failed to fetch models from OpenRouter")
         return {"success": False, "error": "API fetch failed"}
 
     all_models = models_data.get("data", [])
-    free_models = filter_free_models(all_models)
+    LOG.info("Received %d models from API", len(all_models))
 
-    print(f"Found {len(free_models)} benchmarkable free models out of {len(all_models)} total")
+    free_models = filter_free_models(models_data)
 
     if len(free_models) == 0:
-        print("WARNING: No free models found. OpenRouter catalog may have changed.")
+        LOG.warning("No free models found. OpenRouter catalog may have changed.")
 
     catalog_id = generate_catalog_id(free_models)
 
@@ -213,7 +292,7 @@ def discover_models(force: bool = False) -> dict:
     old_catalog_id = old_catalog.get("catalog_id") if old_catalog else None
 
     if catalog_id == old_catalog_id and not force:
-        print("Catalog unchanged. No action needed.")
+        LOG.info("Catalog unchanged (ID: %s). No action needed.", catalog_id)
         return {
             "success": True,
             "catalog_id": catalog_id,
@@ -236,16 +315,16 @@ def discover_models(force: bool = False) -> dict:
 
     save_current_catalog(free_models, catalog_id)
 
-    print(f"Catalog saved: {catalog_id}")
+    LOG.info("Catalog saved: %s", catalog_id)
     if changes["has_changes"]:
         if changes["total_new"] > 0:
-            print(f"New models: {changes['total_new']}")
+            LOG.info("New models detected: %d", changes["total_new"])
             for m in changes["new_models"]:
-                print(f"  + {m}")
+                LOG.info("  + %s", m)
         if changes["total_removed"] > 0:
-            print(f"Removed models: {changes['total_removed']}")
+            LOG.info("Removed models: %d", changes["total_removed"])
             for m in changes["removed_models"]:
-                print(f"  - {m}")
+                LOG.info("  - %s", m)
 
     return {
         "success": True,
@@ -258,37 +337,43 @@ def discover_models(force: bool = False) -> dict:
 
 
 def watch_models(interval_minutes: int = 60) -> None:
-    print(f"Starting model watcher (checking every {interval_minutes} minutes)...")
-    print("Press Ctrl+C to stop")
+    LOG.info("Starting model watcher (checking every %d minutes)", interval_minutes)
+    LOG.info("Press Ctrl+C to stop")
 
     try:
         while True:
             result = discover_models()
             if result["success"]:
                 if result["has_changes"] and result["new_models"]:
-                    print(f"\nNEW MODELS DETECTED: {len(result['new_models'])}")
-                    print("Benchmark trigger available. Use --trigger-benchmark flag.")
+                    LOG.info("NEW MODELS DETECTED: %d", len(result["new_models"]))
+                    LOG.info("Benchmark trigger available. Use --trigger-benchmark flag.")
+                else:
+                    LOG.info("No model changes detected.")
             else:
-                print(f"Watcher error: {result.get('error')}")
+                LOG.error("Watcher error: %s", result.get("error"))
 
-            print(f"\nWaiting {interval_minutes} minutes before next check...")
+            LOG.info("Waiting %d minutes before next check...", interval_minutes)
             time.sleep(interval_minutes * 60)
 
     except KeyboardInterrupt:
-        print("\nWatcher stopped.")
+        LOG.info("Watcher stopped.")
 
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Discover free models from OpenRouter")
     parser.add_argument("--watch", action="store_true", help="Run continuously in watch mode")
     parser.add_argument("--interval", type=int, default=60, help="Watch interval in minutes")
     parser.add_argument("--force", action="store_true", help="Force re-fetch even if unchanged")
     args = parser.parse_args()
 
+    setup_logging()
+
     if args.watch:
         watch_models(args.interval)
     else:
+        setup_logging()
         result = discover_models(force=args.force)
         print(json.dumps(result, indent=2))
 
