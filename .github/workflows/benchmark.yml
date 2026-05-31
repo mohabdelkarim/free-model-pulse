@@ -17,8 +17,19 @@ on:
         description: 'Prompt ID to use (optional)'
         type: string
         required: false
+      force_catalog:
+        description: 'Force re-fetch catalog before benchmark'
+        type: boolean
+        default: false
   repository_dispatch:
     types: [trigger-benchmark]
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 env:
   OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -27,6 +38,7 @@ env:
 
 jobs:
   test:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,6 +56,7 @@ jobs:
         run: pytest tests/ -v
 
   benchmark:
+    name: Run Benchmark
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -60,13 +73,17 @@ jobs:
         run: pip install requests
 
       - name: Ensure catalog exists
-        run: |
-          python watch_models.py || true
+        if: inputs.force_catalog != true
+        run: python watch_models.py || true
+
+      - name: Force refresh catalog
+        if: inputs.force_catalog == true
+        run: python watch_models.py --force
 
       - name: Run benchmark
         run: |
           python benchmark.py \
-            --reason ${{ inputs.benchmark_reason || 'scheduled' }} \
+            --reason '${{ inputs.benchmark_reason || github.event.action == "schedule" && "scheduled" || "manual" }}' \
             ${{ inputs.prompt_id && format('--prompt {0}', inputs.prompt_id) || '' }}
 
       - name: Upload benchmark data
@@ -77,6 +94,7 @@ jobs:
           retention-days: 30
 
   analyze:
+    name: Generate Analysis
     needs: benchmark
     runs-on: ubuntu-latest
     steps:
@@ -98,8 +116,7 @@ jobs:
           path: data/
 
       - name: Generate model index
-        run: |
-          python analyze.py --min-runs 3
+        run: python analyze.py --min-runs 3
 
       - name: Upload derived index
         uses: actions/upload-artifact@v4
@@ -109,16 +126,12 @@ jobs:
           retention-days: 90
 
   commit:
+    name: Commit Data
     needs: analyze
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Git config
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
 
       - name: Download benchmark data
         uses: actions/download-artifact@v4
@@ -126,8 +139,39 @@ jobs:
           name: benchmark-data
           path: data/
 
+      - name: Set up Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
       - name: Commit updated data
         run: |
           git add data/
-          git diff --cached --quiet || git commit -m "ci: update benchmark data $(date -u +%Y-%m-%d)"
-          git push
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: update benchmark data $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+  summary:
+    name: Summary
+    needs: [benchmark, analyze, commit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Benchmark Summary
+        run: |
+          echo "## Benchmark Run Summary"
+          echo "| Step | Status |"
+          echo "|------|--------|"
+          echo "| Test | ${{ needs.test.result }} |"
+          echo "| Benchmark | ${{ needs.benchmark.result }} |"
+          echo "| Analyze | ${{ needs.analyze.result }} |"
+          echo "| Commit | ${{ needs.commit.result }} |"
+          echo ""
+          if [ "${{ needs.benchmark.outputs }}" == "success" ]; then
+            echo "Benchmark completed successfully."
+          else
+            echo "Benchmark encountered issues. Check logs for details."
+          fi
