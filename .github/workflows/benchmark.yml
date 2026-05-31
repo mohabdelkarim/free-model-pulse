@@ -18,6 +18,16 @@ on:
         description: 'Force re-fetch catalog'
         type: boolean
         default: false
+      limit:
+        description: 'Max models per run (default: 8)'
+        type: string
+        required: false
+        default: '8'
+      offset:
+        description: 'Skip first N models (default: 0)'
+        type: string
+        required: false
+        default: '0'
   repository_dispatch:
     types: [trigger-benchmark]
 
@@ -67,11 +77,13 @@ jobs:
       - name: Run benchmark
         run: |
           REASON="${{ inputs.benchmark_reason || 'scheduled' }}"
+          LIMIT="${{ inputs.limit || '8' }}"
+          OFFSET="${{ inputs.offset || '0' }}"
           PROMPT_ARG=""
           if [ -n "${{ inputs.prompt_id }}" ]; then
             PROMPT_ARG="--prompt ${{ inputs.prompt_id }}"
           fi
-          python benchmark.py --reason "$REASON" $PROMPT_ARG
+          python benchmark.py --reason "$REASON" --limit "$LIMIT" --offset "$OFFSET" $PROMPT_ARG
 
       - name: Generate model index
         run: python analyze.py --min-runs 1
