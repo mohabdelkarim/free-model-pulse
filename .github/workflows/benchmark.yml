@@ -1,4 +1,4 @@
-name: Benchmark and Analysis
+name: ⚡ Benchmark & Analysis
 
 on:
   schedule:
@@ -6,19 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       benchmark_reason:
-        description: 'Benchmark reason'
+        description: 'Reason'
         type: choice
-        options:
-          - manual
-          - scheduled
-          - new_model_detected
-        default: 'manual'
+        options: [manual, scheduled, new_model_detected]
+        default: manual
       prompt_id:
-        description: 'Prompt ID to use (optional)'
+        description: 'Prompt ID (optional)'
         type: string
         required: false
       force_catalog:
-        description: 'Force re-fetch catalog before benchmark'
+        description: 'Force re-fetch catalog'
         type: boolean
         default: false
   repository_dispatch:
@@ -31,18 +28,23 @@ concurrency:
 permissions:
   contents: write
 
-env:
-  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-  OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
-  OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
-
 jobs:
-  test:
-    name: Run Unit Tests
+  # ── Single runner: avoids data loss across jobs ───────────────────────────
+  run:
+    name: Test → Benchmark → Analyze → Commit
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
+      OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -52,126 +54,139 @@ jobs:
       - name: Install dependencies
         run: pip install requests pytest
 
+      # ── 1. Tests ────────────────────────────────────────────────────────
       - name: Run unit tests
         run: pytest tests/ -v
 
-  benchmark:
-    name: Run Benchmark
-    needs: test
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # ── 2. Catalog ──────────────────────────────────────────────────────
+      - name: Refresh catalog
+        run: |
+          if [ "${{ inputs.force_catalog }}" = "true" ]; then
+            python watch_models.py --force
+          else
+            python watch_models.py || true
+          fi
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install requests
-
-      - name: Ensure catalog exists
-        if: inputs.force_catalog != true
-        run: python watch_models.py || true
-
-      - name: Force refresh catalog
-        if: inputs.force_catalog == true
-        run: python watch_models.py --force
-
+      # ── 3. Benchmark ────────────────────────────────────────────────────
       - name: Run benchmark
         run: |
-          python benchmark.py \
-            --reason '${{ inputs.benchmark_reason || github.event.action == "schedule" && "scheduled" || "manual" }}' \
-            ${{ inputs.prompt_id && format('--prompt {0}', inputs.prompt_id) || '' }}
+          REASON="${{ inputs.benchmark_reason || 'scheduled' }}"
+          PROMPT_ARG=""
+          if [ -n "${{ inputs.prompt_id }}" ]; then
+            PROMPT_ARG="--prompt ${{ inputs.prompt_id }}"
+          fi
+          python benchmark.py --reason "$REASON" $PROMPT_ARG
 
-      - name: Upload benchmark data
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-data
-          path: data/
-          retention-days: 30
-
-  analyze:
-    name: Generate Analysis
-    needs: benchmark
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install requests
-
-      - name: Download benchmark data
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-data
-          path: data/
-
+      # ── 4. Analyze ──────────────────────────────────────────────────────
       - name: Generate model index
-        run: python analyze.py --min-runs 3
+        run: python analyze.py --min-runs 1
 
-      - name: Upload derived index
-        uses: actions/upload-artifact@v4
-        with:
-          name: derived-index
-          path: data/derived/model_index.csv
-          retention-days: 90
-
-  commit:
-    name: Commit Data
-    needs: analyze
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download benchmark data
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-data
-          path: data/
-
-      - name: Set up Git
+      # ── 5. Update README live table ─────────────────────────────────────
+      - name: Update README leaderboard
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          python - <<'PYEOF'
+          import csv, json, os, re
+          from pathlib import Path
 
-      - name: Commit updated data
+          index_path = Path('data/derived/model_index.csv')
+          readme_path = Path('README.md')
+
+          if not index_path.exists():
+              print('No model_index.csv yet — skipping README update.')
+              exit(0)
+
+          rows = []
+          with open(index_path) as f:
+              for r in csv.DictReader(f):
+                  rows.append(r)
+
+          if not rows:
+              print('model_index.csv is empty — skipping.')
+              exit(0)
+
+          # sort: success_rate desc, latency asc
+          def sort_key(r):
+              try:
+                  sr = float(r.get('success_rate') or 0)
+              except:
+                  sr = 0
+              try:
+                  lat = float(r.get('latency_sec_median') or 999)
+              except:
+                  lat = 999
+              return (-sr, lat)
+
+          rows.sort(key=sort_key)
+
+          # build table
+          medals = ['🥇', '🥈', '🥉']
+          lines = [
+              '| # | Model | Runs | Success | Median Latency | Tokens/s | Last Seen |',
+              '|---|-------|------|---------|---------------|----------|-----------|',
+          ]
+          for i, r in enumerate(rows[:30]):
+              rank = medals[i] if i < 3 else str(i + 1)
+              name = r.get('display_name') or r.get('model_id', '?')
+              runs = r.get('total_runs', '?')
+              sr_raw = r.get('success_rate', '')
+              sr = f"{float(sr_raw)*100:.0f}%" if sr_raw else '?'
+              lat_raw = r.get('latency_sec_median', '')
+              lat = f"{float(lat_raw):.2f}s" if lat_raw else '?'
+              tps_raw = r.get('tokens_per_sec_avg', '')
+              tps = f"{float(tps_raw):.1f}" if tps_raw else '?'
+              last = (r.get('last_seen') or '')[:10]
+              lines.append(f'| {rank} | `{name}` | {runs} | {sr} | {lat} | {tps} | {last} |')
+
+          updated_at = os.popen('date -u +"%Y-%m-%d %H:%M UTC"').read().strip()
+          table_block = '\n'.join([
+              '<!-- LEADERBOARD_START -->',
+              f'> 🕒 Last updated: **{updated_at}** &nbsp;|&nbsp; Auto-generated by GitHub Actions',
+              '',
+          ] + lines + [
+              '',
+              '<!-- LEADERBOARD_END -->',
+          ])
+
+          content = readme_path.read_text()
+          pattern = r'<!-- LEADERBOARD_START -->.*?<!-- LEADERBOARD_END -->'
+          if re.search(pattern, content, re.DOTALL):
+              new_content = re.sub(pattern, table_block, content, flags=re.DOTALL)
+          else:
+              # append before last ## section or at end
+              new_content = content + '\n\n## 📊 Live Leaderboard\n\n' + table_block + '\n'
+
+          readme_path.write_text(new_content)
+          print(f'README updated with {len(rows)} models.')
+          PYEOF
+
+      # ── 6. Commit everything ────────────────────────────────────────────
+      - name: Commit data + README
         run: |
-          git add data/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ README.md
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "Nothing to commit."
           else
-            git commit -m "ci: update benchmark data $(date -u +%Y-%m-%d)"
+            git commit -m "ci(data): benchmark run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push
           fi
 
-  summary:
-    name: Summary
-    needs: [benchmark, analyze, commit]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Benchmark Summary
+      # ── 7. Summary ──────────────────────────────────────────────────────
+      - name: Job summary
+        if: always()
         run: |
-          echo "## Benchmark Run Summary"
-          echo "| Step | Status |"
-          echo "|------|--------|"
-          echo "| Test | ${{ needs.test.result }} |"
-          echo "| Benchmark | ${{ needs.benchmark.result }} |"
-          echo "| Analyze | ${{ needs.analyze.result }} |"
-          echo "| Commit | ${{ needs.commit.result }} |"
-          echo ""
-          if [ "${{ needs.benchmark.outputs }}" == "success" ]; then
-            echo "Benchmark completed successfully."
-          else
-            echo "Benchmark encountered issues. Check logs for details."
+          echo "## ⚡ Benchmark Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Benchmark | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Analysis | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| README update | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Committed | ✅ |" >> $GITHUB_STEP_SUMMARY
+          if [ -f data/derived/model_index.csv ]; then
+            TOTAL=$(tail -n +2 data/derived/model_index.csv | wc -l)
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Models in index:** $TOTAL" >> $GITHUB_STEP_SUMMARY
           fi

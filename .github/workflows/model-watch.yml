@@ -1,4 +1,4 @@
-name: Model Discovery
+name: 🔍 Model Discovery
 
 on:
   schedule:
@@ -22,11 +22,10 @@ jobs:
     name: Discover Free Models
     runs-on: ubuntu-latest
     outputs:
-      catalog_id: ${{ steps.catalog.outputs.catalog_id }}
-      total_models: ${{ steps.catalog.outputs.total_models }}
-      has_changes: ${{ steps.changes.outputs.has_changes }}
-      new_models: ${{ steps.changes.outputs.new_models }}
-      new_models_count: ${{ steps.changes.outputs.new_models_count }}
+      catalog_id: ${{ steps.read.outputs.catalog_id }}
+      total_models: ${{ steps.read.outputs.total_models }}
+      has_changes: ${{ steps.read.outputs.has_changes }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,83 +41,67 @@ jobs:
         run: pip install requests
 
       - name: Discover models
-        id: discover
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_SITE_URL: ${{ vars.OPENROUTER_SITE_URL }}
           OPENROUTER_SITE_EMAIL: ${{ vars.OPENROUTER_SITE_EMAIL }}
         run: |
-          python watch_models.py --force ${{ inputs.force == true && '--force' || '' }}
+          if [ "${{ inputs.force }}" = "true" ]; then
+            python watch_models.py --force
+          else
+            python watch_models.py
+          fi
 
-      - name: Read catalog
-        id: catalog
+      - name: Read catalog output
+        id: read
         run: |
-          python -c "
-          import json
+          python - <<'EOF'
+          import json, os
           with open('data/catalog/current_free_models.json') as f:
               data = json.load(f)
-          print('catalog_id={}'.format(data.get('catalog_id', '')))
-          print('total_models={}'.format(data.get('total_models', 0)))
-          " >> $GITHUB_OUTPUT
+          catalog_id = data.get('catalog_id', '')
+          total = data.get('total_models', 0)
 
-      - name: Detect changes
-        id: changes
-        run: |
-          python -c "
-          import json
-          import os
-
-          with open('data/catalog/current_free_models.json') as f:
-              current = json.load(f)
-
-          current_ids = set(m['model_id'] for m in current.get('models', []))
+          # detect changes vs previous history entry
           prev_ids = set()
-
-          history_file = 'data/catalog/free_models_history.jsonl'
-          if os.path.exists(history_file):
-              with open(history_file) as f:
-                  lines = f.readlines()
-              for line in lines[-5:]:
-                  entry = json.loads(line.strip())
-                  if entry.get('action') == 'snapshot' and entry.get('catalog_id') != current.get('catalog_id'):
+          hist = 'data/catalog/free_models_history.jsonl'
+          if os.path.exists(hist):
+              with open(hist) as f:
+                  lines = [l for l in f.read().splitlines() if l.strip()]
+              for line in reversed(lines[:-1]):
+                  entry = json.loads(line)
+                  if entry.get('action') == 'snapshot' and entry.get('catalog_id') != catalog_id:
                       prev_ids = set(entry.get('model_ids', []))
                       break
+          curr_ids = set(m['model_id'] for m in data.get('models', []))
+          new_count = len(curr_ids - prev_ids)
 
-          new_ids = sorted(current_ids - prev_ids)
-          print('has_changes={}'.format(str(len(new_ids) > 0).lower()))
-          print('new_models={}'.format(json.dumps(new_ids)))
-          print('new_models_count={}'.format(len(new_ids)))
-          " >> $GITHUB_OUTPUT
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'catalog_id={catalog_id}\n')
+              f.write(f'total_models={total}\n')
+              f.write(f'has_changes={str(new_count > 0).lower()}\n')
+          print(f'catalog_id={catalog_id}  total={total}  new={new_count}')
+          EOF
 
-      - name: Commit catalog snapshot
-        if: steps.changes.outputs.has_changes == 'true'
+      - name: Commit catalog (always)
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/catalog/
-          git diff --cached --quiet || echo "No changes to commit"
-          git diff --cached --quiet || git commit -m "chore: update free models catalog $(date -u +%Y-%m-%d)"
-          git push
-
-      - name: Trigger benchmark workflow
-        if: steps.changes.outputs.has_changes == 'true'
-        run: |
-          echo "New free models detected: ${{ steps.changes.outputs.new_models_count }}"
-          echo "Triggering benchmark workflow..."
-
-  output:
-    name: Output Status
-    needs: discover
-    runs-on: ubuntu-latest
-    steps:
-      - name: Summary
-        run: |
-          echo "## Model Discovery Summary"
-          echo "- Catalog ID: ${{ needs.discover.outputs.catalog_id }}"
-          echo "- Total free models: ${{ needs.discover.outputs.total_models }}"
-          echo "- New models: ${{ needs.discover.outputs.new_models_count }}"
-          if [ "${{ needs.discover.outputs.has_changes }}" == "true" ]; then
-            echo "- Status: Changes detected, benchmark triggered"
+          if git diff --cached --quiet; then
+            echo "Nothing to commit — catalog unchanged."
           else
-            echo "- Status: No changes"
+            git commit -m "chore(catalog): snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ) — ${{ steps.read.outputs.total_models }} free models"
+            git push
           fi
+
+      - name: Job summary
+        run: |
+          echo "## 🔍 Model Discovery Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Catalog ID | \`${{ steps.read.outputs.catalog_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total free models | **${{ steps.read.outputs.total_models }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Changes detected | ${{ steps.read.outputs.has_changes }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run at | $(date -u +%Y-%m-%d\ %H:%M\ UTC) |" >> $GITHUB_STEP_SUMMARY
