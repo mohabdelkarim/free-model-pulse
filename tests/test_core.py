@@ -7,6 +7,8 @@ Tests:
 - Model normalization (normalize_model)
 - Diff detection (detect_changes)
 - Aggregate calculations on mixed success/error rows
+
+Run with: pytest tests/ -v
 """
 
 import unittest
@@ -16,7 +18,9 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+ROOT_DIR = Path(__file__).parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from common import (
     safe_float,
@@ -62,9 +66,10 @@ class TestSafeConversions(unittest.TestCase):
 
 
 class TestModelFiltering(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         from watch_models import is_benchmarkable
-        self.is_benchmarkable = is_benchmarkable
+        cls.is_benchmarkable = is_benchmarkable
 
     def test_free_model_with_provider_prefix(self):
         model = {
@@ -139,9 +144,10 @@ class TestModelFiltering(unittest.TestCase):
 
 
 class TestModelNormalization(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         from watch_models import normalize_model
-        self.normalize_model = normalize_model
+        cls.normalize_model = normalize_model
 
     def test_normalize_model_with_provider(self):
         model = {
@@ -182,9 +188,10 @@ class TestModelNormalization(unittest.TestCase):
 
 
 class TestDiffDetection(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         from watch_models import detect_changes
-        self.detect_changes = detect_changes
+        cls.detect_changes = detect_changes
 
     def test_detect_changes_with_no_old_catalog(self):
         new_models = [
@@ -237,9 +244,10 @@ class TestDiffDetection(unittest.TestCase):
 
 
 class TestAggregateCalculations(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         from analyze import aggregate_model_metrics
-        self.aggregate = aggregate_model_metrics
+        cls.aggregate = aggregate_model_metrics
 
     def test_aggregate_with_all_success(self):
         rows = [
