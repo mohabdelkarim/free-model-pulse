@@ -43,6 +43,17 @@ OPENROUTER_ROUTER_PATTERNS = [
     "openrouter/bodybuilder",
 ]
 
+# Only allow text-in / text-out models (chat completions)
+ALLOWED_INPUT_MODALITIES  = {"text"}
+ALLOWED_OUTPUT_MODALITIES = {"text"}
+
+# Explicit keyword blocklist for model IDs that slip through
+BLOCKLIST_KEYWORDS = [
+    "lyria", "imagen", "dall-e", "stable-diffusion", "sdxl",
+    "whisper", "tts", "speech", "audio", "music", "video",
+    "embed", "embedding", "rerank",
+]
+
 LOG = get_logger("watch_models")
 
 
@@ -161,6 +172,28 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
     if model.get("hidden", False):
         return False, "model is hidden"
 
+    # --- Modality check: only text-in / text-out ---
+    architecture = model.get("architecture", {})
+    input_modalities  = set(architecture.get("input_modalities", ["text"]))
+    output_modalities = set(architecture.get("output_modalities", ["text"]))
+
+    # Must support text input
+    if not input_modalities.intersection(ALLOWED_INPUT_MODALITIES):
+        return False, f"non-text input modality: {input_modalities}"
+
+    # Output must be ONLY text (reject audio/image/video output models)
+    non_text_outputs = output_modalities - ALLOWED_OUTPUT_MODALITIES
+    if non_text_outputs:
+        return False, f"non-text output modality: {non_text_outputs}"
+
+    # --- Keyword blocklist (catches models missing modality metadata) ---
+    model_id_lower = model_id.lower()
+    name_lower = (model.get("name") or "").lower()
+    for keyword in BLOCKLIST_KEYWORDS:
+        if keyword in model_id_lower or keyword in name_lower:
+            return False, f"blocked keyword '{keyword}' in model id/name"
+
+    # --- Pricing check ---
     pricing = model.get("pricing", {})
     try:
         prompt_price = float(pricing.get("prompt", 0))
@@ -175,7 +208,7 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
 
 def filter_free_models(models_data: dict) -> list[dict]:
     all_models = models_data.get("data", [])
-    LOG.info("Filtering %d total models for benchmarkable free models", len(all_models))
+    LOG.info("Filtering %d total models for benchmarkable free text models", len(all_models))
 
     free_models = []
     excluded = []
@@ -194,7 +227,7 @@ def filter_free_models(models_data: dict) -> list[dict]:
         if len(excluded) > 5:
             LOG.debug("  ... and %d more", len(excluded) - 5)
 
-    LOG.info("Found %d benchmarkable free models out of %d total",
+    LOG.info("Found %d benchmarkable free text models out of %d total",
              len(free_models), len(all_models))
     return free_models
 
