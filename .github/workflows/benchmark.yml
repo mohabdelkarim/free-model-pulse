@@ -29,7 +29,6 @@ permissions:
   contents: write
 
 jobs:
-  # ── Single runner: avoids data loss across jobs ───────────────────────────
   run:
     name: Test → Benchmark → Analyze → Commit
     runs-on: ubuntu-latest
@@ -54,11 +53,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests pytest
 
-      # ── 1. Tests ────────────────────────────────────────────────────────
       - name: Run unit tests
         run: pytest tests/ -v
 
-      # ── 2. Catalog ──────────────────────────────────────────────────────
       - name: Refresh catalog
         run: |
           if [ "${{ inputs.force_catalog }}" = "true" ]; then
@@ -67,7 +64,6 @@ jobs:
             python watch_models.py || true
           fi
 
-      # ── 3. Benchmark ────────────────────────────────────────────────────
       - name: Run benchmark
         run: |
           REASON="${{ inputs.benchmark_reason || 'scheduled' }}"
@@ -77,11 +73,9 @@ jobs:
           fi
           python benchmark.py --reason "$REASON" $PROMPT_ARG
 
-      # ── 4. Analyze ──────────────────────────────────────────────────────
       - name: Generate model index
         run: python analyze.py --min-runs 1
 
-      # ── 5. Update README live table ─────────────────────────────────────
       - name: Update README leaderboard
         run: |
           python - <<'PYEOF'
@@ -104,7 +98,6 @@ jobs:
               print('model_index.csv is empty — skipping.')
               exit(0)
 
-          # sort: success_rate desc, latency asc
           def sort_key(r):
               try:
                   sr = float(r.get('success_rate') or 0)
@@ -118,11 +111,10 @@ jobs:
 
           rows.sort(key=sort_key)
 
-          # build table
           medals = ['🥇', '🥈', '🥉']
           lines = [
               '| # | Model | Runs | Success | Median Latency | Tokens/s | Last Seen |',
-              '|---|-------|------|---------|---------------|----------|-----------|',
+              '|---|-------|------|---------|----------------|----------|-----------|',
           ]
           for i, r in enumerate(rows[:30]):
               rank = medals[i] if i < 3 else str(i + 1)
@@ -152,18 +144,16 @@ jobs:
           if re.search(pattern, content, re.DOTALL):
               new_content = re.sub(pattern, table_block, content, flags=re.DOTALL)
           else:
-              # append before last ## section or at end
               new_content = content + '\n\n## 📊 Live Leaderboard\n\n' + table_block + '\n'
 
           readme_path.write_text(new_content)
           print(f'README updated with {len(rows)} models.')
           PYEOF
 
-      # ── 6. Commit everything ────────────────────────────────────────────
       - name: Commit data + README
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "MOHAbdelkarim"
+          git config user.email "mohaabdelkarim2@gmail.com"
           git add data/ README.md
           if git diff --cached --quiet; then
             echo "Nothing to commit."
@@ -172,7 +162,6 @@ jobs:
             git push
           fi
 
-      # ── 7. Summary ──────────────────────────────────────────────────────
       - name: Job summary
         if: always()
         run: |

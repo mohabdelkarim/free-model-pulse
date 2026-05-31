@@ -62,7 +62,6 @@ jobs:
           catalog_id = data.get('catalog_id', '')
           total = data.get('total_models', 0)
 
-          # detect changes vs previous history entry
           prev_ids = set()
           hist = 'data/catalog/free_models_history.jsonl'
           if os.path.exists(hist):
@@ -85,8 +84,8 @@ jobs:
 
       - name: Commit catalog (always)
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "MOHAbdelkarim"
+          git config user.email "mohaabdelkarim2@gmail.com"
           git add data/catalog/
           if git diff --cached --quiet; then
             echo "Nothing to commit — catalog unchanged."
@@ -104,4 +103,4 @@ jobs:
           echo "| Catalog ID | \`${{ steps.read.outputs.catalog_id }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Total free models | **${{ steps.read.outputs.total_models }}** |" >> $GITHUB_STEP_SUMMARY
           echo "| Changes detected | ${{ steps.read.outputs.has_changes }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Run at | $(date -u +%Y-%m-%d\ %H:%M\ UTC) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run at | $(date -u +"%Y-%m-%d %H:%M UTC") |" >> $GITHUB_STEP_SUMMARY
