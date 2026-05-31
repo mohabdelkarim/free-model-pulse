@@ -298,10 +298,109 @@ The project uses two workflows that work together:
 4. Run tests if available
 5. Submit a pull request
 
+## Limitations and Interpretation Caveats
+
+**Important: Free Model Pulse tracks operational behavior, not model intelligence.**
+
+### What This Tool Does
+
+- Measures latency, token throughput, and availability of *currently free* OpenRouter models
+- Records historical observations over time
+- Detects when new free models appear in the catalog
+- Produces operational metrics useful for monitoring and planning
+
+### What This Tool Does NOT Claim
+
+- This is NOT a ranking of model intelligence or quality
+- Results should NOT be interpreted as "which model is best"
+- Latency differences do not necessarily reflect model capability
+
+### Known Limitations
+
+1. **Rate Limits**: Free models are frequently rate-limited. A failed benchmark may reflect OpenRouter's load, not the model's quality or availability.
+
+2. **Provider Routing**: OpenRouter routes requests to underlying providers. Queue conditions, provider hiccups, and regional routing can significantly affect latency measurements.
+
+3. **Dynamic Catalog Membership**: Free models can be added or removed without notice. A model absent from today's results may appear tomorrow, or vice versa.
+
+4. **Single Prompt Benchmarking**: Default benchmarks use one simple prompt. Model performance may vary significantly on different task types.
+
+5. **Network Variability**: GitHub Actions runners have variable network conditions. Latency measurements include this variability.
+
+6. **Cost Field Accuracy**: The `cost` field comes from OpenRouter's response. Actual costs may vary based on provider pricing changes.
+
+### Interpreting Results
+
+- Use success rate to gauge overall availability
+- Use latency percentiles (median, p95) to understand typical vs worst-case performance
+- Use token throughput (tokens/sec) to understand generation speed
+- Track changes over time, not absolute values
+- Always verify with your own workloads
+
+## FAQ
+
+### Why doesn't this benchmark use `openrouter/free`?
+
+The `openrouter/free` router routes requests randomly among free models and updates its routing strategy without notice. This makes it impossible to attribute results to a specific model or track historical performance per model.
+
+### How often does the catalog change?
+
+OpenRouter occasionally adds new free models and may retire or modify existing ones. The model watch workflow runs every 6 hours to detect these changes.
+
+### Why did my benchmark fail?
+
+Common reasons:
+- Rate limit (429) - try again later
+- Timeout - the model is slow or unavailable
+- Network issue - temporary connectivity problem
+- Model removed - no longer in the free catalog
+
+### Can I run benchmarks locally?
+
+Yes. Set `OPENROUTER_API_KEY` in your environment and run:
+```bash
+python watch_models.py  # Discover current models
+python benchmark.py     # Run benchmarks
+python analyze.py       # Generate analysis
+```
+
+### How is data committed back to the repo?
+
+The benchmark workflow runs as a GitHub Actions job. It commits updated data files using `GITHUB_TOKEN`. This happens in the `commit` job after analysis completes.
+
+### Do I need a PAT for repository dispatch?
+
+No. `GITHUB_TOKEN` is sufficient for repository dispatch within the same repo.
+
+## Roadmap / Future Work
+
+### Near-term
+
+- [ ] Add more benchmark prompts (coding, reasoning, creative writing)
+- [ ] Implement multiple prompt variants per model for more robust metrics
+- [ ] Add latency breakdown (time to first token vs total time)
+- [ ] Create visualization dashboard for historical trends
+
+### Medium-term
+
+- [ ] Add model capability metadata (vision, function calling, etc.)
+- [ ] Implement alerts for model availability drops
+- [ ] Add comparison mode vs previous benchmark runs
+- [ ] Support custom benchmark prompts via PR workflow
+
+### Long-term
+
+- [ ] Explore cross-provider free model benchmarking
+- [ ] Add response quality assessment (beyond operational metrics)
+- [ ] Create public API for accessing benchmark data
+- [ ] Consider model "health scores" based on availability trends
+
 ## License
 
 MIT License - see LICENSE file for details.
 
 ## Disclaimer
+
+The benchmark results represent operational observations under specific conditions and should not be interpreted as endorsements or rankings of any model. Model availability and performance can change without notice.
 
 This project is not affiliated with OpenRouter. It's an independent observability tool for tracking free LLM availability and performance over time.
