@@ -217,8 +217,13 @@ def normalize_model(model: dict) -> dict:
     }
 
 
+def _get_model_id(model: dict) -> str:
+    """Safely extract model_id from either raw API object (has 'id') or normalized object (has 'model_id')."""
+    return model.get("id") or model.get("model_id", "")
+
+
 def generate_catalog_id(models: list[dict]) -> str:
-    model_ids = sorted([m.get("id") or m.get("model_id", "") for m in models])
+    model_ids = sorted([_get_model_id(m) for m in models])
     content = json.dumps(model_ids, sort_keys=True)
     return hashlib.sha256(content.encode()).hexdigest()[:12]
 
@@ -254,15 +259,15 @@ def detect_changes(old_catalog: Optional[dict], new_models: list[dict]) -> dict:
     if old_catalog is None:
         return {
             "has_changes": True,
-            "new_models": [m["model_id"] for m in new_models],
+            "new_models": [_get_model_id(m) for m in new_models if isinstance(m, dict)],
             "removed_models": [],
             "total_new": len(new_models),
             "total_removed": 0,
         }
 
     old_models = old_catalog.get("models", [])
-    old_ids = set(m.get("id") or m.get("model_id", "") for m in old_models if isinstance(m, dict))
-    new_ids = set(m.get("id") or m.get("model_id", "") for m in new_models if isinstance(m, dict))
+    old_ids = set(_get_model_id(m) for m in old_models if isinstance(m, dict))
+    new_ids = set(_get_model_id(m) for m in new_models if isinstance(m, dict))
 
     added = sorted(new_ids - old_ids)
     removed = sorted(old_ids - new_ids)
