@@ -143,6 +143,21 @@ OPENROUTER_ROUTER_PATTERNS = [
     "openrouter/bodybuilder",
 ]
 
+NON_TEXT_PATTERNS = [
+    "whisper",
+    "tts",
+    "audio",
+    "speech",
+    "vision",
+    "-vl",
+    "-vl:",
+    "clip",
+]
+
+TEXT_CHAT_KEYWORDS = [
+    "text", "chat", "instruct", "completion", "reasoning", "coder", "lm"
+]
+
 
 def is_router_or_helper(model_id: str) -> tuple[bool, str]:
     for pattern in OPENROUTER_ROUTER_PATTERNS:
@@ -151,14 +166,41 @@ def is_router_or_helper(model_id: str) -> tuple[bool, str]:
     return False, ""
 
 
+def is_text_chat_capable(model: dict) -> tuple[bool, str]:
+    model_id = model.get("id", "").lower()
+    model_name = model.get("name", "").lower()
+    description = model.get("description", "").lower()
+
+    for pattern in NON_TEXT_PATTERNS:
+        if pattern in model_id or pattern in model_name:
+            return False, f"non-text pattern '{pattern}' in model id or name"
+
+    desc_audio = ["audio", "speech", "voice", "transcription", "whisper"]
+    desc_image = ["image generation", "image understanding", "image generation", "vision-only"]
+    desc_video = ["video generation", "video understanding"]
+
+    for keyword in desc_audio:
+        if keyword in description:
+            return False, f"non-text keyword '{keyword}' in description"
+    for keyword in desc_image:
+        if keyword in description:
+            return False, f"non-text keyword '{keyword}' in description"
+    for keyword in desc_video:
+        if keyword in description:
+            return False, f"non-text keyword '{keyword}' in description"
+
+    return True, ""
+
+
 def is_benchmarkable(model: dict) -> tuple[bool, str]:
     model_id = model.get("id", "")
 
     if not model_id:
         return False, "empty model id"
 
-    if is_router_or_helper(model_id)[0]:
-        return False, is_router_or_helper(model_id)[1]
+    is_router, router_reason = is_router_or_helper(model_id)
+    if is_router:
+        return False, router_reason
 
     if "free" in model_id.lower() and "/" not in model_id:
         return False, "id contains 'free' without provider prefix"
@@ -178,32 +220,52 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
     except (ValueError, TypeError):
         return False, "invalid pricing data"
 
+    is_text, text_reason = is_text_chat_capable(model)
+    if not is_text:
+        return False, text_reason
+
     return True, ""
 
 
 def filter_free_models(models_data: dict) -> list[dict]:
     all_models = models_data.get("data", [])
-    LOG.info("Filtering %d total models for benchmarkable free models", len(all_models))
+    LOG.info("Filtering %d total models for benchmarkable free text/chat models", len(all_models))
 
     free_models = []
-    excluded = []
+    excluded_routers = []
+    excluded_non_text = []
+    excluded_paid = []
+    excluded_other = []
 
     for model in all_models:
+        model_id = model.get("id", "unknown")
         is_free, reason = is_benchmarkable(model)
         if is_free:
             free_models.append(model)
         else:
-            excluded.append((model.get("id", "unknown"), reason))
+            if "router" in reason.lower() or "helper" in reason.lower():
+                excluded_routers.append((model_id, reason))
+            elif "non-text" in reason.lower() or "audio" in reason.lower() or "video" in reason.lower():
+                excluded_non_text.append((model_id, reason))
+            elif "not free" in reason.lower():
+                excluded_paid.append((model_id, reason))
+            else:
+                excluded_other.append((model_id, reason))
 
-    if excluded:
-        LOG.debug("Excluded models: %d", len(excluded))
-        for model_id, reason in excluded[:5]:
-            LOG.debug("  - %s: %s", model_id, reason)
-        if len(excluded) > 5:
-            LOG.debug("  ... and %d more", len(excluded) - 5)
+    LOG.info("Filtered: %d text/chat models, %d routers/helpers, %d non-text, %d paid, %d other",
+             len(free_models), len(excluded_routers), len(excluded_non_text),
+             len(excluded_paid), len(excluded_other))
 
-    LOG.info("Found %d benchmarkable free models out of %d total",
-             len(free_models), len(all_models))
+    if excluded_routers:
+        LOG.debug("Excluded routers/helpers (%d):", len(excluded_routers))
+        for mid, reason in excluded_routers[:3]:
+            LOG.debug("  - %s: %s", mid, reason)
+
+    if excluded_non_text:
+        LOG.debug("Excluded non-text models (%d):", len(excluded_non_text))
+        for mid, reason in excluded_non_text[:3]:
+            LOG.debug("  - %s: %s", mid, reason)
+
     return free_models
 
 

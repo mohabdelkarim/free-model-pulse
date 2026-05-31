@@ -205,6 +205,62 @@ class TestModelFiltering(unittest.TestCase):
         is_free, reason = watch_models.is_benchmarkable(model)
         self.assertTrue(is_free)
 
+    def test_excludes_whisper_model(self):
+        model = {
+            "id": "openai/whisper-1",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
+    def test_excludes_audio_model_in_name(self):
+        model = {
+            "id": "some/audio-model:free",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
+    def test_excludes_vl_model(self):
+        model = {
+            "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
+    def test_excludes_clip_model(self):
+        model = {
+            "id": "google/lyria-3-clip-preview",
+            "pricing": {"prompt": "0", "completion": "0"},
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
+    def test_excludes_model_with_audio_description(self):
+        model = {
+            "id": "test/audio-model:free",
+            "pricing": {"prompt": "0", "completion": "0"},
+            "description": "An audio transcription model",
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
+    def test_excludes_model_with_video_description(self):
+        model = {
+            "id": "test/video-model:free",
+            "pricing": {"prompt": "0", "completion": "0"},
+            "description": "A video understanding model",
+        }
+        is_free, reason = watch_models.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("non-text", reason)
+
 
 class TestModelNormalization(unittest.TestCase):
     def test_normalize_model_with_provider(self):
