@@ -170,10 +170,6 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
     except (ValueError, TypeError):
         return False, "invalid pricing data"
 
-    supported_params = model.get("supported_parameters", [])
-    if supported_params and "messages" not in supported_params:
-        return False, "model does not support messages API"
-
     return True, ""
 
 
@@ -222,7 +218,7 @@ def normalize_model(model: dict) -> dict:
 
 
 def generate_catalog_id(models: list[dict]) -> str:
-    model_ids = sorted([m["model_id"] for m in models])
+    model_ids = sorted([m.get("id") or m.get("model_id", "") for m in models])
     content = json.dumps(model_ids, sort_keys=True)
     return hashlib.sha256(content.encode()).hexdigest()[:12]
 
@@ -265,8 +261,8 @@ def detect_changes(old_catalog: Optional[dict], new_models: list[dict]) -> dict:
         }
 
     old_models = old_catalog.get("models", [])
-    old_ids = set(m["model_id"] for m in old_models if isinstance(m, dict))
-    new_ids = set(m["model_id"] for m in new_models if isinstance(m, dict))
+    old_ids = set(m.get("id") or m.get("model_id", "") for m in old_models if isinstance(m, dict))
+    new_ids = set(m.get("id") or m.get("model_id", "") for m in new_models if isinstance(m, dict))
 
     added = sorted(new_ids - old_ids)
     removed = sorted(old_ids - new_ids)

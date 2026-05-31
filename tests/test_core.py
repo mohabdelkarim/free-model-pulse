@@ -139,8 +139,7 @@ class TestModelFiltering(unittest.TestCase):
             "supported_parameters": ["prompt"]
         }
         is_free, reason = TestModelFiltering.is_benchmarkable(model)
-        self.assertFalse(is_free)
-        self.assertIn("messages", reason)
+        self.assertTrue(is_free)
 
 
 class TestModelNormalization(unittest.TestCase):
