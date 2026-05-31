@@ -63,7 +63,7 @@ def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> fl
         return min(retry_after, MAX_RETRY_DELAY)
 
     delay = RETRY_DELAY_BASE * (2 ** attempt)
-    jitter = delay * 0.1 * (hashlib.md5(str(time.time()).encode()).hexdigest()[0:2], int.from_bytes) % 10)
+    jitter = delay * 0.1 * (int(hashlib.md5(str(time.time()).encode()).hexdigest()[:2], 16) % 10)
     return min(delay + jitter, MAX_RETRY_DELAY)
 
 
