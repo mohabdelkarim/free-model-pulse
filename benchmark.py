@@ -44,8 +44,10 @@ BATCH_SIZE = int(os.getenv("BENCHMARK_BATCH_SIZE", "5"))
 BATCH_PAUSE_SEC = float(os.getenv("BENCHMARK_BATCH_PAUSE_SEC", "60"))
 
 # Circuit breaker: pause entire benchmark after N consecutive 429s
+# Pause doubles each time it trips: 120s -> 240s -> 480s -> capped at 600s
 CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("BENCHMARK_CIRCUIT_BREAKER_THRESHOLD", "3"))
-CIRCUIT_BREAKER_PAUSE = float(os.getenv("BENCHMARK_CIRCUIT_BREAKER_PAUSE", "120"))
+CIRCUIT_BREAKER_BASE_PAUSE = float(os.getenv("BENCHMARK_CIRCUIT_BREAKER_PAUSE", "120"))
+CIRCUIT_BREAKER_MAX_PAUSE = 600
 
 # HTTP status codes that are never worth retrying
 NON_RETRYABLE_STATUSES = {400, 401, 403, 404, 422}
@@ -300,11 +302,14 @@ def run_benchmark(
     LOG.info("Models to test: %d", total_tests)
     LOG.info("Batch size: %d, pause between batches: %.0fs", BATCH_SIZE, BATCH_PAUSE_SEC)
     LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
-    LOG.info("Circuit breaker: %d consecutive 429s → pause %.0fs",
-             CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE)
+    LOG.info(
+        "Circuit breaker: %d consecutive 429s → pause %ds (doubles each trip, max %ds)",
+        CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_BASE_PAUSE, CIRCUIT_BREAKER_MAX_PAUSE,
+    )
 
     start_time = time.time()
     consecutive_429s = 0
+    circuit_breaker_trips = 0
 
     for i, model in enumerate(models):
         model_id = model.get("model_id")
@@ -319,19 +324,31 @@ def run_benchmark(
         result = benchmark_single_model(model_id, prompt_text, prompt_version)
 
         # --- Circuit breaker: detect account-level 429 throttle ---
+        # Reset ONLY on genuine success; non-429 errors (404, timeout) don’t clear the counter
+        # so a single passing model can’t mask an ongoing rate-limit storm.
         error_msg = result.get("error_message", "")
-        if result.get("status") in ("error", "timeout") and "429" in error_msg:
+        is_429 = result.get("status") in ("error", "timeout") and "429" in error_msg
+        is_success = result.get("status") == "success"
+
+        if is_429:
             consecutive_429s += 1
             LOG.warning("Consecutive 429s: %d/%d", consecutive_429s, CIRCUIT_BREAKER_THRESHOLD)
             if consecutive_429s >= CIRCUIT_BREAKER_THRESHOLD:
-                LOG.warning(
-                    "Circuit breaker triggered: %d consecutive 429s — pausing %.0fs before continuing",
-                    consecutive_429s, CIRCUIT_BREAKER_PAUSE
+                circuit_breaker_trips += 1
+                pause = min(
+                    CIRCUIT_BREAKER_BASE_PAUSE * (2 ** (circuit_breaker_trips - 1)),
+                    CIRCUIT_BREAKER_MAX_PAUSE,
                 )
-                time.sleep(CIRCUIT_BREAKER_PAUSE)
+                LOG.warning(
+                    "Circuit breaker #%d triggered — pausing %.0fs before continuing",
+                    circuit_breaker_trips, pause,
+                )
+                time.sleep(pause)
                 consecutive_429s = 0
-        else:
+        elif is_success:
+            # Only a real successful response proves the rate limit has cleared
             consecutive_429s = 0
+        # Any other error (404, timeout, 5xx) — leave consecutive_429s unchanged
 
         row = {
             "run_id": run_id,
