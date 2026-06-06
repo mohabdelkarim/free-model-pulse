@@ -107,7 +107,6 @@ jobs:
               with open(catalog_path) as f:
                   try:
                       raw = json.load(f)
-                      # watch_models.py saves { catalog_id, models: [...normalized...] }
                       entries = raw.get('models', [])
                       for m in entries:
                           mid = m.get('model_id', '')
@@ -143,8 +142,7 @@ jobs:
 
               cat = catalog.get(model_id, {})
 
-              # Context — from model_index.csv first (most reliable),
-              # fallback to catalog normalized object
+              # Context — from model_index.csv first, fallback to catalog
               ctx_raw = r.get('context_length') or cat.get('context_length')
               if ctx_raw:
                   try:
@@ -182,7 +180,7 @@ jobs:
               else:
                   released = '?'
 
-              # Status — green if last run succeeded (success_rate >= 0.5)
+              # Status
               try:
                   sr = float(r.get('success_rate') or 0)
                   status = '🟢' if sr >= 0.5 else '🔴'
@@ -218,7 +216,7 @@ jobs:
         run: |
           git config user.name "MOHAbdelkarim"
           git config user.email "mohaabdelkarim2@gmail.com"
-          git add data/ README.md
+          git add -f data/ README.md
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
