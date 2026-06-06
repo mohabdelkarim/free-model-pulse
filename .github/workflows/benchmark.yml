@@ -113,30 +113,22 @@ jobs:
 
           medals = ['🥇', '🥈', '🥉']
 
-          # Columns: rank | model | median latency | p95 latency | tokens/s | avg cost | availability
           lines = [
-              '| # | Model | Median Latency | P95 Latency | Tokens/s | Avg Cost | Availability |',
-              '|---|-------|---------------|-------------|----------|----------|-------------|',
+              '| # | Model | Median Latency | P95 Latency | Tokens/s | Availability |',
+              '|---|-------|---------------|-------------|----------|-------------|',
           ]
           for i, r in enumerate(rows[:30]):
-              rank   = medals[i] if i < 3 else str(i + 1)
-              name   = r.get('display_name') or r.get('model_id', '?')
+              rank = medals[i] if i < 3 else str(i + 1)
+              name = r.get('display_name') or r.get('model_id', '?')
 
               lat_raw = r.get('latency_sec_median', '')
-              lat     = f"{float(lat_raw):.2f}s" if lat_raw else '?'
+              lat = f"{float(lat_raw):.2f}s" if lat_raw else '?'
 
               p95_raw = r.get('latency_sec_p95', '')
-              p95     = f"{float(p95_raw):.2f}s" if p95_raw else '?'
+              p95 = f"{float(p95_raw):.2f}s" if p95_raw else '?'
 
               tps_raw = r.get('tokens_per_sec_avg', '')
-              tps     = f"{float(tps_raw):.1f}" if tps_raw else '?'
-
-              cost_raw = r.get('cost_avg', '')
-              try:
-                  cost_val = float(cost_raw)
-                  cost = '$0.00 (free)' if cost_val == 0 else f'${cost_val:.6f}'
-              except:
-                  cost = '?'
+              tps = f"{float(tps_raw):.1f}" if tps_raw else '?'
 
               avail_raw = r.get('availability', '')
               try:
@@ -144,7 +136,7 @@ jobs:
               except:
                   avail = '?'
 
-              lines.append(f'| {rank} | `{name}` | {lat} | {p95} | {tps} | {cost} | {avail} |')
+              lines.append(f'| {rank} | `{name}` | {lat} | {p95} | {tps} | {avail} |')
 
           updated_at = os.popen('date -u +"%Y-%m-%d %H:%M UTC"').read().strip()
           table_block = '\n'.join([
