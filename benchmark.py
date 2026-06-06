@@ -36,9 +36,15 @@ RETRY_DELAY_BASE = 2
 MAX_RETRY_DELAY = 60
 RETRY_BUDGET_SEC = 300
 
-# Delay between models to avoid hammering the free tier rate limit
+# Delay between models inside a batch
 INTER_MODEL_DELAY = float(os.getenv("BENCHMARK_INTER_MODEL_DELAY", "8"))
 
+# Batching: test N models, then pause before next batch
+BATCH_SIZE = int(os.getenv("BENCHMARK_BATCH_SIZE", "5"))
+BATCH_PAUSE_SEC = float(os.getenv("BENCHMARK_BATCH_PAUSE_SEC", "60"))
+
+# HTTP status codes that are never worth retrying
+NON_RETRYABLE_STATUSES = {400, 401, 403, 404, 422}
 
 LOG = get_logger("benchmark")
 
@@ -58,13 +64,14 @@ def get_api_headers() -> dict:
 
 
 def is_retryable_status(status_code: int) -> bool:
+    if status_code in NON_RETRYABLE_STATUSES:
+        return False
     return status_code == 429 or (500 <= status_code < 600)
 
 
 def compute_backoff_delay(attempt: int, retry_after: Optional[int] = None) -> float:
     if retry_after and retry_after > 0:
         return min(retry_after, MAX_RETRY_DELAY)
-
     delay = RETRY_DELAY_BASE * (2 ** attempt)
     jitter = delay * 0.1 * (int(hashlib.md5(str(time.time()).encode()).hexdigest()[:2], 16) % 10)
     return min(delay + jitter, MAX_RETRY_DELAY)
@@ -111,11 +118,21 @@ def benchmark_single_model(
 
             elapsed_time = time.time() - start_time
 
+            # Non-retryable errors (403, 401, 404, etc.) — skip immediately, no retry
+            if response.status_code in NON_RETRYABLE_STATUSES:
+                LOG.warning("[%s] Non-retryable HTTP %d — skipping. Body: %s",
+                            model_id, response.status_code, response.text[:200])
+                return {
+                    "status": "error",
+                    "error_message": f"HTTP {response.status_code} (non-retryable): {response.text[:200]}",
+                    "latency_sec": round(elapsed_time, 3),
+                }
+
             if response.status_code == 429:
                 retry_after = int(response.headers.get("Retry-After", 0))
                 delay = compute_backoff_delay(attempt, retry_after)
                 LOG.warning("[%s] Rate limited. Attempt %d/%d. Waiting %.1fs",
-                          model_id, attempt + 1, MAX_RETRIES, delay)
+                            model_id, attempt + 1, MAX_RETRIES, delay)
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(delay)
                     continue
@@ -128,7 +145,7 @@ def benchmark_single_model(
             if is_retryable_status(response.status_code):
                 delay = compute_backoff_delay(attempt)
                 LOG.warning("[%s] Server error %d. Attempt %d/%d. Waiting %.1fs",
-                          model_id, response.status_code, attempt + 1, MAX_RETRIES, delay)
+                            model_id, response.status_code, attempt + 1, MAX_RETRIES, delay)
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(delay)
                     continue
@@ -162,7 +179,7 @@ def benchmark_single_model(
                 finish_reason = finish_reason.get("reason", "unknown")
 
             LOG.debug("[%s] Success - Latency: %.3fs, Tokens: %s",
-                     model_id, elapsed_time, usage.get("total_tokens", "N/A"))
+                      model_id, elapsed_time, usage.get("total_tokens", "N/A"))
 
             return {
                 "status": "success",
@@ -181,7 +198,7 @@ def benchmark_single_model(
         except requests.exceptions.Timeout:
             elapsed_time = time.time() - start_time
             LOG.warning("[%s] Timeout after %.1fs. Attempt %d/%d",
-                      model_id, elapsed_time, attempt + 1, MAX_RETRIES)
+                        model_id, elapsed_time, attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
                 delay = compute_backoff_delay(attempt)
                 time.sleep(delay)
@@ -195,7 +212,7 @@ def benchmark_single_model(
         except requests.exceptions.ConnectionError as e:
             elapsed_time = time.time() - start_time
             LOG.warning("[%s] Connection error: %s. Attempt %d/%d",
-                       model_id, str(e)[:100], attempt + 1, MAX_RETRIES)
+                        model_id, str(e)[:100], attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
                 delay = compute_backoff_delay(attempt)
                 time.sleep(delay)
@@ -276,6 +293,7 @@ def run_benchmark(
     LOG.info("Reason: %s", benchmark_reason)
     LOG.info("Prompt: %s (v%s)", prompt_id, prompt_version)
     LOG.info("Models to test: %d", total_tests)
+    LOG.info("Batch size: %d, pause between batches: %.0fs", BATCH_SIZE, BATCH_PAUSE_SEC)
     LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
 
     start_time = time.time()
@@ -320,18 +338,25 @@ def run_benchmark(
         if result.get("status") == "success":
             successful += 1
             LOG.info("[%s] SUCCESS - Latency: %.3fs, Tokens: %s, Cost: $%.6f",
-                    model_id,
-                    result.get("latency_sec", 0),
-                    result.get("total_tokens", "N/A"),
-                    result.get("cost", 0))
+                     model_id,
+                     result.get("latency_sec", 0),
+                     result.get("total_tokens", "N/A"),
+                     result.get("cost", 0))
         else:
             failed += 1
             LOG.error("[%s] FAILED - %s", model_id, result.get("error_message", "Unknown error"))
 
-        # Respect free tier rate limits — skip delay after last model
+        # Inter-model delay (skip after last model)
         if i < total_tests - 1:
-            LOG.debug("Waiting %.1fs before next model...", INTER_MODEL_DELAY)
             time.sleep(INTER_MODEL_DELAY)
+
+        # Batch pause: after every BATCH_SIZE models, pause to let rate limits recover
+        batch_position = (i + 1) % BATCH_SIZE
+        is_last_model = i == total_tests - 1
+        if batch_position == 0 and not is_last_model:
+            LOG.info("--- Batch of %d complete. Pausing %.0fs before next batch... ---",
+                     BATCH_SIZE, BATCH_PAUSE_SEC)
+            time.sleep(BATCH_PAUSE_SEC)
 
     total_duration = time.time() - start_time
 
@@ -385,7 +410,7 @@ def main():
                         help="Benchmark reason")
     parser.add_argument("--run-id", help="Custom run ID")
     parser.add_argument("--new-only", action="store_true",
-                       help="Benchmark only newly discovered models")
+                        help="Benchmark only newly discovered models")
     args = parser.parse_args()
 
     setup_logging()
@@ -399,10 +424,10 @@ def main():
         if catalog:
             models = catalog.get("models", [])
         result = run_benchmark(models=models, prompt_id=args.prompt,
-                              benchmark_reason="new_model_detected", run_id=args.run_id)
+                               benchmark_reason="new_model_detected", run_id=args.run_id)
     else:
         result = run_benchmark(models=models, prompt_id=args.prompt,
-                              benchmark_reason=args.reason, run_id=args.run_id)
+                               benchmark_reason=args.reason, run_id=args.run_id)
 
     print(json.dumps(result, indent=2))
 
