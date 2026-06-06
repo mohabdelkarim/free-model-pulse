@@ -7,6 +7,9 @@ Tests:
 - Model normalization (normalize_model)
 - Diff detection (detect_changes)
 - Aggregate calculations on mixed success/error rows
+- CSV / JSONL file operations
+- benchmark_single_model HTTP layer (mocked)
+- Circuit breaker logic in run_benchmark (mocked)
 
 Run with: pytest tests/ -v
 """
@@ -17,6 +20,7 @@ import tempfile
 import os
 import sys
 from pathlib import Path
+from unittest.mock import patch, MagicMock, call
 
 ROOT_DIR = Path(__file__).parent.parent
 if str(ROOT_DIR) not in sys.path:
@@ -34,6 +38,10 @@ from common import (
     ensure_csv_header,
 )
 
+
+# ---------------------------------------------------------------------------
+# Safe conversions
+# ---------------------------------------------------------------------------
 
 class TestSafeConversions(unittest.TestCase):
     def test_safe_float_with_valid_value(self):
@@ -65,152 +73,165 @@ class TestSafeConversions(unittest.TestCase):
         self.assertEqual(safe_int("invalid", 42), 42)
 
 
+# ---------------------------------------------------------------------------
+# Model filtering
+# ---------------------------------------------------------------------------
+
 class TestModelFiltering(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from watch_models import is_benchmarkable
-        cls.is_benchmarkable = is_benchmarkable
+        cls.is_benchmarkable = staticmethod(is_benchmarkable)
+
+    def _free_model(self, **overrides):
+        base = {
+            "id": "test/model",
+            "pricing": {"prompt": 0, "completion": 0},
+        }
+        base.update(overrides)
+        return base
 
     def test_free_model_with_provider_prefix(self):
-        model = {
-            "id": "google/gemini-pro",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, _ = self.is_benchmarkable(self._free_model(id="google/gemini-pro"))
         self.assertTrue(is_free)
 
     def test_excludes_router_free(self):
-        model = {
-            "id": "openrouter/free",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, reason = self.is_benchmarkable(self._free_model(id="openrouter/free"))
+        self.assertFalse(is_free)
+        self.assertIn("router", reason)
+
+    def test_excludes_router_fusion(self):
+        """openrouter/fusion must be blocked (returns 403)."""
+        is_free, reason = self.is_benchmarkable(self._free_model(id="openrouter/fusion"))
         self.assertFalse(is_free)
         self.assertIn("router", reason)
 
     def test_excludes_model_with_price(self):
-        model = {
-            "id": "openai/gpt-4",
-            "pricing": {"prompt": 0.00001, "completion": 0.00002},
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, reason = self.is_benchmarkable(
+            self._free_model(id="openai/gpt-4", pricing={"prompt": 0.00001, "completion": 0.00002})
+        )
         self.assertFalse(is_free)
         self.assertIn("not free", reason)
 
     def test_excludes_disabled_model(self):
-        model = {
-            "id": "test/model",
-            "pricing": {"prompt": 0, "completion": 0},
-            "disabled": True,
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, reason = self.is_benchmarkable(self._free_model(disabled=True))
         self.assertFalse(is_free)
         self.assertIn("disabled", reason)
 
     def test_excludes_hidden_model(self):
-        model = {
-            "id": "test/model",
-            "pricing": {"prompt": 0, "completion": 0},
-            "hidden": True,
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, reason = self.is_benchmarkable(self._free_model(hidden=True))
         self.assertFalse(is_free)
         self.assertIn("hidden", reason)
 
     def test_excludes_empty_model_id(self):
-        model = {
-            "id": "",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["messages"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+        is_free, reason = self.is_benchmarkable(self._free_model(id=""))
         self.assertFalse(is_free)
         self.assertIn("empty", reason)
 
-    def test_requires_messages_support(self):
-        model = {
-            "id": "test/model",
-            "pricing": {"prompt": 0, "completion": 0},
-            "supported_parameters": ["prompt"]
-        }
-        is_free, reason = TestModelFiltering.is_benchmarkable(model)
+    def test_excludes_image_output_modality(self):
+        model = self._free_model(architecture={
+            "input_modalities": ["text"],
+            "output_modalities": ["text", "image"],
+        })
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("modality", reason)
+
+    def test_excludes_blocklist_keyword_in_id(self):
+        is_free, reason = self.is_benchmarkable(self._free_model(id="test/whisper-large"))
+        self.assertFalse(is_free)
+        self.assertIn("whisper", reason)
+
+    def test_excludes_blocklist_keyword_in_name(self):
+        model = self._free_model(id="test/model", name="Some TTS Model")
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("tts", reason)
+
+    def test_supported_parameters_not_checked(self):
+        """is_benchmarkable does NOT filter on supported_parameters — test reflects reality."""
+        # A model with only "prompt" in supported_parameters is still benchmarkable
+        # because the code doesn't enforce messages support.
+        model = self._free_model(supported_parameters=["prompt"])
+        is_free, _ = self.is_benchmarkable(model)
         self.assertTrue(is_free)
 
+
+# ---------------------------------------------------------------------------
+# Model normalization
+# ---------------------------------------------------------------------------
 
 class TestModelNormalization(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from watch_models import normalize_model
-        cls.normalize_model = normalize_model
+        cls.normalize_model = staticmethod(normalize_model)
 
     def test_normalize_model_with_provider(self):
         model = {
             "id": "google/gemini-pro",
             "name": "Gemini Pro",
             "context_length": 32000,
+            "created": 1700000000,
             "description": "A great model",
         }
-        result = TestModelNormalization.normalize_model(model)
+        result = self.normalize_model(model)
         self.assertEqual(result["model_id"], "google/gemini-pro")
         self.assertEqual(result["display_name"], "Gemini Pro")
         self.assertEqual(result["canonical_family"], "google")
         self.assertEqual(result["context_length"], 32000)
+        self.assertEqual(result["created"], 1700000000)
 
     def test_normalize_model_without_provider(self):
-        model = {
-            "id": "unknown-model",
-            "name": "Unknown Model",
-        }
-        result = TestModelNormalization.normalize_model(model)
+        model = {"id": "unknown-model", "name": "Unknown Model"}
+        result = self.normalize_model(model)
         self.assertEqual(result["canonical_family"], "unknown")
 
     def test_normalize_model_truncates_description(self):
-        model = {
-            "id": "test/model",
-            "description": "x" * 1000,
-        }
-        result = TestModelNormalization.normalize_model(model)
+        model = {"id": "test/model", "description": "x" * 1000}
+        result = self.normalize_model(model)
         self.assertEqual(len(result["description"]), 500)
 
     def test_normalize_model_handles_none_description(self):
-        model = {
-            "id": "test/model",
-            "description": None,
-        }
-        result = TestModelNormalization.normalize_model(model)
+        model = {"id": "test/model", "description": None}
+        result = self.normalize_model(model)
         self.assertEqual(result["description"], "")
 
+    def test_normalize_model_stores_architecture(self):
+        """architecture must be stored so leaderboard can read input_modalities."""
+        arch = {"input_modalities": ["text", "image"], "output_modalities": ["text"]}
+        model = {"id": "test/model", "architecture": arch}
+        result = self.normalize_model(model)
+        self.assertEqual(result["architecture"], arch)
+
+    def test_normalize_model_created_none_when_missing(self):
+        model = {"id": "test/model"}
+        result = self.normalize_model(model)
+        self.assertIsNone(result.get("created"))
+
+
+# ---------------------------------------------------------------------------
+# Diff detection
+# ---------------------------------------------------------------------------
 
 class TestDiffDetection(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from watch_models import detect_changes
-        cls.detect_changes = detect_changes
+        cls.detect_changes = staticmethod(detect_changes)
 
     def test_detect_changes_with_no_old_catalog(self):
-        new_models = [
-            {"model_id": "model/1"},
-            {"model_id": "model/2"},
-        ]
-        result = TestDiffDetection.detect_changes(None, new_models)
+        new_models = [{"model_id": "model/1"}, {"model_id": "model/2"}]
+        result = self.detect_changes(None, new_models)
         self.assertTrue(result["has_changes"])
-        self.assertEqual(result["new_models"], ["model/1", "model/2"])
+        self.assertEqual(sorted(result["new_models"]), ["model/1", "model/2"])
         self.assertEqual(result["removed_models"], [])
         self.assertEqual(result["total_new"], 2)
 
     def test_detect_changes_with_added_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}]}
-        new_models = [
-            {"model_id": "model/1"},
-            {"model_id": "model/2"},
-            {"model_id": "model/3"},
-        ]
-        result = TestDiffDetection.detect_changes(old_catalog, new_models)
+        new_models = [{"model_id": "model/1"}, {"model_id": "model/2"}, {"model_id": "model/3"}]
+        result = self.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(sorted(result["new_models"]), ["model/2", "model/3"])
         self.assertEqual(result["removed_models"], [])
@@ -219,7 +240,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_removed_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}]
-        result = TestDiffDetection.detect_changes(old_catalog, new_models)
+        result = self.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], ["model/2"])
@@ -228,7 +249,7 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_with_no_changes(self):
         old_catalog = {"models": [{"model_id": "model/1"}, {"model_id": "model/2"}]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/2"}]
-        result = TestDiffDetection.detect_changes(old_catalog, new_models)
+        result = self.detect_changes(old_catalog, new_models)
         self.assertFalse(result["has_changes"])
         self.assertEqual(result["new_models"], [])
         self.assertEqual(result["removed_models"], [])
@@ -236,30 +257,38 @@ class TestDiffDetection(unittest.TestCase):
     def test_detect_changes_handles_non_dict_models(self):
         old_catalog = {"models": [{"model_id": "model/1"}, None, "invalid"]}
         new_models = [{"model_id": "model/1"}, {"model_id": "model/3"}]
-        result = TestDiffDetection.detect_changes(old_catalog, new_models)
+        result = self.detect_changes(old_catalog, new_models)
         self.assertTrue(result["has_changes"])
         self.assertEqual(result["new_models"], ["model/3"])
         self.assertEqual(result["removed_models"], [])
 
 
+# ---------------------------------------------------------------------------
+# Aggregate calculations
+# ---------------------------------------------------------------------------
+
 class TestAggregateCalculations(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from analyze import aggregate_model_metrics
-        cls.aggregate = aggregate_model_metrics
+        cls.aggregate = staticmethod(aggregate_model_metrics)
+
+    def _row(self, model_id, status, latency="1.0", tokens="100", run_id="r1", ts="2024-01-01T00:00:00Z"):
+        return {
+            "model_id": model_id, "status": status,
+            "latency_sec": latency, "total_tokens": tokens,
+            "cost": "0.0", "run_id": run_id,
+            "canonical_family": "test", "display_name": model_id.upper(),
+            "timestamp_utc": ts,
+        }
 
     def test_aggregate_with_all_success(self):
         rows = [
-            {"model_id": "m1", "status": "success", "latency_sec": "1.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
-            {"model_id": "m1", "status": "success", "latency_sec": "2.0",
-             "total_tokens": "150", "cost": "0.0", "run_id": "r2",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
+            self._row("m1", "success", latency="1.0", run_id="r1"),
+            self._row("m1", "success", latency="2.0", run_id="r2", ts="2024-01-02T00:00:00Z"),
         ]
-        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
+        result = self.aggregate(rows, min_runs=1)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["model_id"], "m1")
         self.assertEqual(result[0]["total_runs"], 2)
         self.assertEqual(result[0]["successful_runs"], 2)
         self.assertEqual(result[0]["failed_runs"], 0)
@@ -268,50 +297,38 @@ class TestAggregateCalculations(unittest.TestCase):
 
     def test_aggregate_with_mixed_success_error(self):
         rows = [
-            {"model_id": "m1", "status": "success", "latency_sec": "1.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
-            {"model_id": "m1", "status": "error", "latency_sec": "0.5",
-             "total_tokens": "0", "cost": "0.0", "run_id": "r2",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-02T00:00:00Z"},
+            self._row("m1", "success", run_id="r1"),
+            self._row("m1", "error", run_id="r2", ts="2024-01-02T00:00:00Z"),
         ]
-        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
-        self.assertEqual(len(result), 1)
+        result = self.aggregate(rows, min_runs=1)
         self.assertEqual(result[0]["total_runs"], 2)
         self.assertEqual(result[0]["successful_runs"], 1)
         self.assertEqual(result[0]["failed_runs"], 1)
         self.assertEqual(result[0]["success_rate"], 0.5)
 
     def test_aggregate_excludes_below_min_runs(self):
-        rows = [
-            {"model_id": "m1", "status": "success", "latency_sec": "1.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
-        ]
-        result = TestAggregateCalculations.aggregate(rows, min_runs=3)
+        rows = [self._row("m1", "success")]
+        result = self.aggregate(rows, min_runs=3)
         self.assertEqual(len(result), 0)
 
     def test_aggregate_handles_empty_rows(self):
-        result = TestAggregateCalculations.aggregate([], min_runs=1)
-        self.assertEqual(result, [])
+        self.assertEqual(self.aggregate([], min_runs=1), [])
 
     def test_aggregate_sorts_by_success_rate_and_latency(self):
         rows = [
-            {"model_id": "m1", "status": "success", "latency_sec": "5.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M1", "timestamp_utc": "2024-01-01T00:00:00Z"},
-            {"model_id": "m2", "status": "success", "latency_sec": "1.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M2", "timestamp_utc": "2024-01-01T00:00:00Z"},
-            {"model_id": "m3", "status": "success", "latency_sec": "2.0",
-             "total_tokens": "100", "cost": "0.0", "run_id": "r1",
-             "canonical_family": "test", "display_name": "M3", "timestamp_utc": "2024-01-01T00:00:00Z"},
+            self._row("m1", "success", latency="5.0"),
+            self._row("m2", "success", latency="1.0"),
+            self._row("m3", "success", latency="2.0"),
         ]
-        result = TestAggregateCalculations.aggregate(rows, min_runs=1)
+        result = self.aggregate(rows, min_runs=1)
         self.assertEqual(result[0]["model_id"], "m2")
         self.assertEqual(result[1]["model_id"], "m3")
         self.assertEqual(result[2]["model_id"], "m1")
 
+
+# ---------------------------------------------------------------------------
+# CSV operations
+# ---------------------------------------------------------------------------
 
 class TestCSVOperations(unittest.TestCase):
     def setUp(self):
@@ -325,18 +342,14 @@ class TestCSVOperations(unittest.TestCase):
     def test_append_csv_row_creates_header(self):
         append_csv_row(self.csv_path, {"col1": "val1", "col2": "val2"})
         self.assertTrue(self.csv_path.exists())
-
-        with open(self.csv_path, "r") as f:
-            content = f.read()
+        content = self.csv_path.read_text()
         self.assertIn("col1,col2", content)
         self.assertIn("val1,val2", content)
 
     def test_append_csv_row_appends_without_duplicate_header(self):
         append_csv_row(self.csv_path, {"col1": "val1", "col2": "val2"})
         append_csv_row(self.csv_path, {"col1": "val3", "col2": "val4"})
-
-        with open(self.csv_path, "r") as f:
-            lines = f.readlines()
+        lines = self.csv_path.read_text().splitlines()
         self.assertEqual(len(lines), 3)
         self.assertEqual(lines[0].strip(), "col1,col2")
 
@@ -349,6 +362,200 @@ class TestCSVOperations(unittest.TestCase):
         append_csv_row(self.csv_path, {"col1": "val1", "col2": "val2"})
         result = ensure_csv_header(self.csv_path, ["col1", "col3"])
         self.assertTrue(result)
+
+
+# ---------------------------------------------------------------------------
+# benchmark_single_model — HTTP layer (mocked)
+# ---------------------------------------------------------------------------
+
+class TestBenchmarkSingleModel(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from benchmark import benchmark_single_model
+        cls.benchmark_single_model = staticmethod(benchmark_single_model)
+
+    def _mock_response(self, status_code, body=None, headers=None):
+        mock = MagicMock()
+        mock.status_code = status_code
+        mock.headers = headers or {}
+        mock.text = json.dumps(body or {})
+        mock.json.return_value = body or {}
+        return mock
+
+    def _success_body(self):
+        return {
+            "id": "test-response-id",
+            "choices": [{"message": {"content": "42"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+            "cost": 0.0,
+        }
+
+    def test_success_response(self):
+        with patch("requests.post", return_value=self._mock_response(200, self._success_body())):
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["total_tokens"], 15)
+        self.assertEqual(result["finish_reason"], "stop")
+
+    def test_handles_429_returns_error_with_429_in_message(self):
+        """After MAX_RETRIES of 429, status must be 'error' and '429' must appear in error_message."""
+        mock_resp = self._mock_response(429, headers={"Retry-After": "1"})
+        with patch("requests.post", return_value=mock_resp):
+            with patch("time.sleep"):  # don't actually sleep
+                result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertIn("429", result["error_message"])
+
+    def test_handles_403_non_retryable(self):
+        """403 must return immediately without retrying."""
+        mock_resp = self._mock_response(403, {"error": "forbidden"})
+        with patch("requests.post", return_value=mock_resp) as mock_post:
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertIn("403", result["error_message"])
+        self.assertEqual(mock_post.call_count, 1)  # no retries
+
+    def test_handles_401_non_retryable(self):
+        mock_resp = self._mock_response(401, {"error": "unauthorized"})
+        with patch("requests.post", return_value=mock_resp) as mock_post:
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(mock_post.call_count, 1)
+
+    def test_handles_500_retries_then_fails(self):
+        mock_resp = self._mock_response(500, {"error": "server error"})
+        with patch("requests.post", return_value=mock_resp):
+            with patch("time.sleep"):
+                result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertIn("500", result["error_message"])
+
+    def test_handles_timeout(self):
+        import requests as req
+        with patch("requests.post", side_effect=req.exceptions.Timeout()):
+            with patch("time.sleep"):
+                result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "timeout")
+        self.assertIn("timed out", result["error_message"].lower())
+
+    def test_handles_connection_error(self):
+        import requests as req
+        with patch("requests.post", side_effect=req.exceptions.ConnectionError("conn refused")):
+            with patch("time.sleep"):
+                result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertIn("connection", result["error_message"].lower())
+
+    def test_handles_empty_choices(self):
+        body = {"choices": [], "usage": {}}
+        with patch("requests.post", return_value=self._mock_response(200, body)):
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "error")
+        self.assertIn("choices", result["error_message"].lower())
+
+    def test_success_after_one_retry(self):
+        """First call returns 500, second returns 200 — should succeed."""
+        fail_resp = self._mock_response(500)
+        ok_resp = self._mock_response(200, self._success_body())
+        with patch("requests.post", side_effect=[fail_resp, ok_resp]):
+            with patch("time.sleep"):
+                result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "success")
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker in run_benchmark (mocked)
+# ---------------------------------------------------------------------------
+
+class TestCircuitBreaker(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from benchmark import run_benchmark, CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE
+        cls.run_benchmark = staticmethod(run_benchmark)
+        cls.threshold = CIRCUIT_BREAKER_THRESHOLD
+        cls.pause = CIRCUIT_BREAKER_PAUSE
+
+    def _make_models(self, n):
+        return [
+            {"model_id": f"test/model-{i}", "display_name": f"Model {i}", "canonical_family": "test"}
+            for i in range(n)
+        ]
+
+    def _429_result(self):
+        return {"status": "error", "error_message": "429: Rate limited after 3 attempts", "latency_sec": 1.0}
+
+    def _ok_result(self):
+        return {
+            "status": "success", "latency_sec": 0.5,
+            "prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15,
+            "cost": 0.0, "finish_reason": "stop", "response_id": "r1",
+        }
+
+    def test_circuit_breaker_triggers_after_threshold(self):
+        """After THRESHOLD consecutive 429 results, time.sleep must be called with CIRCUIT_BREAKER_PAUSE."""
+        n = self.threshold
+        models = self._make_models(n)
+
+        with patch("benchmark.benchmark_single_model", return_value=self._429_result()), \
+             patch("benchmark.append_csv_row"), \
+             patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
+             patch("benchmark.load_prompts", return_value={
+                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
+                 "default_prompt_id": "p1", "version": "1.0"
+             }), \
+             patch("time.sleep") as mock_sleep:
+
+            self.run_benchmark(models=models, run_id="test-run")
+
+        # At least one sleep call must equal CIRCUIT_BREAKER_PAUSE
+        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
+        self.assertGreaterEqual(len(pause_calls), 1,
+            f"Expected circuit breaker sleep({self.pause}s) but got: {mock_sleep.call_args_list}")
+
+    def test_circuit_breaker_resets_on_success(self):
+        """A successful result resets the consecutive counter — breaker must NOT fire."""
+        # Pattern: 2 x 429, then 1 success, then 2 x 429 → never hits threshold of 3 in a row
+        results = (
+            [self._429_result()] * 2
+            + [self._ok_result()]
+            + [self._429_result()] * 2
+        )
+        models = self._make_models(len(results))
+
+        with patch("benchmark.benchmark_single_model", side_effect=results), \
+             patch("benchmark.append_csv_row"), \
+             patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
+             patch("benchmark.load_prompts", return_value={
+                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
+                 "default_prompt_id": "p1", "version": "1.0"
+             }), \
+             patch("time.sleep") as mock_sleep:
+
+            self.run_benchmark(models=models, run_id="test-run")
+
+        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
+        self.assertEqual(len(pause_calls), 0,
+            "Circuit breaker must NOT fire when successes break the streak")
+
+    def test_circuit_breaker_does_not_trigger_on_non_429_errors(self):
+        """Non-429 errors (e.g. 500, timeout) must NOT increment the 429 counter."""
+        non_429 = {"status": "error", "error_message": "HTTP 500: server error", "latency_sec": 1.0}
+        models = self._make_models(self.threshold + 1)
+
+        with patch("benchmark.benchmark_single_model", return_value=non_429), \
+             patch("benchmark.append_csv_row"), \
+             patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
+             patch("benchmark.load_prompts", return_value={
+                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
+                 "default_prompt_id": "p1", "version": "1.0"
+             }), \
+             patch("time.sleep") as mock_sleep:
+
+            self.run_benchmark(models=models, run_id="test-run")
+
+        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
+        self.assertEqual(len(pause_calls), 0,
+            "Circuit breaker must only fire on 429 errors, not generic errors")
 
 
 if __name__ == "__main__":
