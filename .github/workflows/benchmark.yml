@@ -85,7 +85,7 @@ jobs:
 
           index_path   = Path('data/derived/model_index.csv')
           readme_path  = Path('README.md')
-          catalog_path = Path('data/catalog/models.json')
+          catalog_path = Path('data/catalog/current_free_models.json')
 
           if not index_path.exists():
               print('No model_index.csv yet — skipping README update.')
