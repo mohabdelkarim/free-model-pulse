@@ -473,7 +473,7 @@ class TestCircuitBreaker(unittest.TestCase):
         from benchmark import run_benchmark, CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE
         cls.run_benchmark = staticmethod(run_benchmark)
         cls.threshold = CIRCUIT_BREAKER_THRESHOLD
-        cls.pause = CIRCUIT_BREAKER_PAUSE
+        cls.base_pause = CIRCUIT_BREAKER_PAUSE  # pause for the first trip
 
     def _make_models(self, n):
         return [
@@ -491,26 +491,31 @@ class TestCircuitBreaker(unittest.TestCase):
             "cost": 0.0, "finish_reason": "stop", "response_id": "r1",
         }
 
+    def _mock_env(self):
+        return {
+            "prompts": [{"id": "p1", "text": "What is 2+2?"}],
+            "default_prompt_id": "p1",
+            "version": "1.0",
+        }
+
     def test_circuit_breaker_triggers_after_threshold(self):
-        """After THRESHOLD consecutive 429 results, time.sleep must be called with CIRCUIT_BREAKER_PAUSE."""
-        n = self.threshold
-        models = self._make_models(n)
+        """After THRESHOLD consecutive 429s, time.sleep must be called with base_pause (first trip)."""
+        models = self._make_models(self.threshold)
 
         with patch("benchmark.benchmark_single_model", return_value=self._429_result()), \
              patch("benchmark.append_csv_row"), \
              patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
-             patch("benchmark.load_prompts", return_value={
-                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
-                 "default_prompt_id": "p1", "version": "1.0"
-             }), \
+             patch("benchmark.load_prompts", return_value=self._mock_env()), \
              patch("time.sleep") as mock_sleep:
 
             self.run_benchmark(models=models, run_id="test-run")
 
-        # At least one sleep call must equal CIRCUIT_BREAKER_PAUSE
-        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
-        self.assertGreaterEqual(len(pause_calls), 1,
-            f"Expected circuit breaker sleep({self.pause}s) but got: {mock_sleep.call_args_list}")
+        # First trip fires with base_pause (120s)
+        pause_calls = [c.args[0] for c in mock_sleep.call_args_list]
+        self.assertIn(
+            self.base_pause, pause_calls,
+            f"Expected circuit breaker sleep({self.base_pause}s) but got: {pause_calls}",
+        )
 
     def test_circuit_breaker_resets_on_success(self):
         """A successful result resets the consecutive counter — breaker must NOT fire."""
@@ -525,17 +530,17 @@ class TestCircuitBreaker(unittest.TestCase):
         with patch("benchmark.benchmark_single_model", side_effect=results), \
              patch("benchmark.append_csv_row"), \
              patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
-             patch("benchmark.load_prompts", return_value={
-                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
-                 "default_prompt_id": "p1", "version": "1.0"
-             }), \
+             patch("benchmark.load_prompts", return_value=self._mock_env()), \
              patch("time.sleep") as mock_sleep:
 
             self.run_benchmark(models=models, run_id="test-run")
 
-        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
-        self.assertEqual(len(pause_calls), 0,
-            "Circuit breaker must NOT fire when successes break the streak")
+        # No sleep call >= base_pause should have been made (circuit breaker didn't fire)
+        breaker_calls = [c.args[0] for c in mock_sleep.call_args_list if c.args[0] >= self.base_pause]
+        self.assertEqual(
+            len(breaker_calls), 0,
+            f"Circuit breaker must NOT fire when successes break the streak; got sleeps: {breaker_calls}",
+        )
 
     def test_circuit_breaker_does_not_trigger_on_non_429_errors(self):
         """Non-429 errors (e.g. 500, timeout) must NOT increment the 429 counter."""
@@ -545,17 +550,16 @@ class TestCircuitBreaker(unittest.TestCase):
         with patch("benchmark.benchmark_single_model", return_value=non_429), \
              patch("benchmark.append_csv_row"), \
              patch("benchmark.load_current_catalog", return_value={"catalog_id": "test", "models": []}), \
-             patch("benchmark.load_prompts", return_value={
-                 "prompts": [{"id": "p1", "text": "What is 2+2?"}],
-                 "default_prompt_id": "p1", "version": "1.0"
-             }), \
+             patch("benchmark.load_prompts", return_value=self._mock_env()), \
              patch("time.sleep") as mock_sleep:
 
             self.run_benchmark(models=models, run_id="test-run")
 
-        pause_calls = [c for c in mock_sleep.call_args_list if c.args[0] == self.pause]
-        self.assertEqual(len(pause_calls), 0,
-            "Circuit breaker must only fire on 429 errors, not generic errors")
+        breaker_calls = [c.args[0] for c in mock_sleep.call_args_list if c.args[0] >= self.base_pause]
+        self.assertEqual(
+            len(breaker_calls), 0,
+            f"Circuit breaker must only fire on 429 errors, not generic errors; got: {breaker_calls}",
+        )
 
 
 if __name__ == "__main__":

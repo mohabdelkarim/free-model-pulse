@@ -43,10 +43,11 @@ INTER_MODEL_DELAY = float(os.getenv("BENCHMARK_INTER_MODEL_DELAY", "8"))
 BATCH_SIZE = int(os.getenv("BENCHMARK_BATCH_SIZE", "5"))
 BATCH_PAUSE_SEC = float(os.getenv("BENCHMARK_BATCH_PAUSE_SEC", "60"))
 
-# Circuit breaker: pause entire benchmark after N consecutive 429s
-# Pause doubles each time it trips: 120s -> 240s -> 480s -> capped at 600s
+# Circuit breaker: pause entire benchmark after N consecutive 429s.
+# CIRCUIT_BREAKER_PAUSE is the *base* pause (first trip).
+# Each subsequent trip doubles it: 120s -> 240s -> 480s -> capped at 600s.
 CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("BENCHMARK_CIRCUIT_BREAKER_THRESHOLD", "3"))
-CIRCUIT_BREAKER_BASE_PAUSE = float(os.getenv("BENCHMARK_CIRCUIT_BREAKER_PAUSE", "120"))
+CIRCUIT_BREAKER_PAUSE = float(os.getenv("BENCHMARK_CIRCUIT_BREAKER_PAUSE", "120"))  # base / trip-1 pause
 CIRCUIT_BREAKER_MAX_PAUSE = 600
 
 # HTTP status codes that are never worth retrying
@@ -303,8 +304,8 @@ def run_benchmark(
     LOG.info("Batch size: %d, pause between batches: %.0fs", BATCH_SIZE, BATCH_PAUSE_SEC)
     LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
     LOG.info(
-        "Circuit breaker: %d consecutive 429s → pause %ds (doubles each trip, max %ds)",
-        CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_BASE_PAUSE, CIRCUIT_BREAKER_MAX_PAUSE,
+        "Circuit breaker: %d consecutive 429s -> pause %ds (doubles each trip, max %ds)",
+        CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE, CIRCUIT_BREAKER_MAX_PAUSE,
     )
 
     start_time = time.time()
@@ -324,8 +325,8 @@ def run_benchmark(
         result = benchmark_single_model(model_id, prompt_text, prompt_version)
 
         # --- Circuit breaker: detect account-level 429 throttle ---
-        # Reset ONLY on genuine success; non-429 errors (404, timeout) don’t clear the counter
-        # so a single passing model can’t mask an ongoing rate-limit storm.
+        # Reset ONLY on genuine success; non-429 errors (404, timeout, 5xx) don't clear
+        # the counter so a single passing model can't mask an ongoing rate-limit storm.
         error_msg = result.get("error_message", "")
         is_429 = result.get("status") in ("error", "timeout") and "429" in error_msg
         is_success = result.get("status") == "success"
@@ -335,8 +336,9 @@ def run_benchmark(
             LOG.warning("Consecutive 429s: %d/%d", consecutive_429s, CIRCUIT_BREAKER_THRESHOLD)
             if consecutive_429s >= CIRCUIT_BREAKER_THRESHOLD:
                 circuit_breaker_trips += 1
+                # Exponential backoff: CIRCUIT_BREAKER_PAUSE doubles each trip, capped at max
                 pause = min(
-                    CIRCUIT_BREAKER_BASE_PAUSE * (2 ** (circuit_breaker_trips - 1)),
+                    CIRCUIT_BREAKER_PAUSE * (2 ** (circuit_breaker_trips - 1)),
                     CIRCUIT_BREAKER_MAX_PAUSE,
                 )
                 LOG.warning(
