@@ -43,6 +43,10 @@ INTER_MODEL_DELAY = float(os.getenv("BENCHMARK_INTER_MODEL_DELAY", "8"))
 BATCH_SIZE = int(os.getenv("BENCHMARK_BATCH_SIZE", "5"))
 BATCH_PAUSE_SEC = float(os.getenv("BENCHMARK_BATCH_PAUSE_SEC", "60"))
 
+# Circuit breaker: pause entire benchmark after N consecutive 429s
+CIRCUIT_BREAKER_THRESHOLD = int(os.getenv("BENCHMARK_CIRCUIT_BREAKER_THRESHOLD", "3"))
+CIRCUIT_BREAKER_PAUSE = float(os.getenv("BENCHMARK_CIRCUIT_BREAKER_PAUSE", "120"))
+
 # HTTP status codes that are never worth retrying
 NON_RETRYABLE_STATUSES = {400, 401, 403, 404, 422}
 
@@ -136,9 +140,10 @@ def benchmark_single_model(
                 if attempt < MAX_RETRIES - 1:
                     time.sleep(delay)
                     continue
+                # Return with a clear 429 marker so the circuit breaker can detect it
                 return {
                     "status": "error",
-                    "error_message": f"Rate limited (429) after {MAX_RETRIES} attempts",
+                    "error_message": f"429: Rate limited after {MAX_RETRIES} attempts",
                     "latency_sec": round(elapsed_time, 3),
                 }
 
@@ -295,8 +300,11 @@ def run_benchmark(
     LOG.info("Models to test: %d", total_tests)
     LOG.info("Batch size: %d, pause between batches: %.0fs", BATCH_SIZE, BATCH_PAUSE_SEC)
     LOG.info("Inter-model delay: %.1fs", INTER_MODEL_DELAY)
+    LOG.info("Circuit breaker: %d consecutive 429s → pause %.0fs",
+             CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE)
 
     start_time = time.time()
+    consecutive_429s = 0
 
     for i, model in enumerate(models):
         model_id = model.get("model_id")
@@ -309,6 +317,21 @@ def run_benchmark(
         LOG.info("[%d/%d] Testing %s...", completed, total_tests, model_id)
 
         result = benchmark_single_model(model_id, prompt_text, prompt_version)
+
+        # --- Circuit breaker: detect account-level 429 throttle ---
+        error_msg = result.get("error_message", "")
+        if result.get("status") in ("error", "timeout") and "429" in error_msg:
+            consecutive_429s += 1
+            LOG.warning("Consecutive 429s: %d/%d", consecutive_429s, CIRCUIT_BREAKER_THRESHOLD)
+            if consecutive_429s >= CIRCUIT_BREAKER_THRESHOLD:
+                LOG.warning(
+                    "Circuit breaker triggered: %d consecutive 429s — pausing %.0fs before continuing",
+                    consecutive_429s, CIRCUIT_BREAKER_PAUSE
+                )
+                time.sleep(CIRCUIT_BREAKER_PAUSE)
+                consecutive_429s = 0
+        else:
+            consecutive_429s = 0
 
         row = {
             "run_id": run_id,

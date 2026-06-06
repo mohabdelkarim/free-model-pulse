@@ -41,6 +41,7 @@ OPENROUTER_ROUTER_PATTERNS = [
     "openrouter/auto",
     "openrouter/pareto-code",
     "openrouter/bodybuilder",
+    "openrouter/fusion",
 ]
 
 # Only allow text-in / text-out models (chat completions)
@@ -242,11 +243,12 @@ def normalize_model(model: dict) -> dict:
         "display_name": model.get("name", model_id),
         "canonical_family": canonical_family,
         "context_length": model.get("context_length"),
+        "created": model.get("created"),
         "description": (model.get("description") or "")[:500],
         "pricing": model.get("pricing", {}),
         "top_provider": model.get("top_provider", {}),
-        "created": model.get("created"),
         "supported_parameters": model.get("supported_parameters", []),
+        "architecture": model.get("architecture", {}),
     }
 
 
@@ -380,46 +382,15 @@ def discover_models(force: bool = False) -> dict:
     }
 
 
-def watch_models(interval_minutes: int = 60) -> None:
-    LOG.info("Starting model watcher (checking every %d minutes)", interval_minutes)
-    LOG.info("Press Ctrl+C to stop")
-
-    try:
-        while True:
-            result = discover_models()
-            if result["success"]:
-                if result["has_changes"] and result["new_models"]:
-                    LOG.info("NEW MODELS DETECTED: %d", len(result["new_models"]))
-                    LOG.info("Benchmark trigger available. Use --trigger-benchmark flag.")
-                else:
-                    LOG.info("No model changes detected.")
-            else:
-                LOG.error("Watcher error: %s", result.get("error"))
-
-            LOG.info("Waiting %d minutes before next check...", interval_minutes)
-            time.sleep(interval_minutes * 60)
-
-    except KeyboardInterrupt:
-        LOG.info("Watcher stopped.")
-
-
 def main():
     import argparse
-
-    parser = argparse.ArgumentParser(description="Discover free models from OpenRouter")
-    parser.add_argument("--watch", action="store_true", help="Run continuously in watch mode")
-    parser.add_argument("--interval", type=int, default=60, help="Watch interval in minutes")
-    parser.add_argument("--force", action="store_true", help="Force re-fetch even if unchanged")
+    parser = argparse.ArgumentParser(description="Discover and watch free models from OpenRouter")
+    parser.add_argument("--force", action="store_true", help="Force re-fetch even if catalog unchanged")
     args = parser.parse_args()
 
     setup_logging()
-
-    if args.watch:
-        watch_models(args.interval)
-    else:
-        setup_logging()
-        result = discover_models(force=args.force)
-        print(json.dumps(result, indent=2))
+    result = discover_models(force=args.force)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":
