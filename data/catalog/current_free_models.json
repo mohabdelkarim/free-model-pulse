@@ -1,8 +1,55 @@
 {
-  "catalog_id": "2bf7e35492f8",
-  "timestamp": "2026-06-06T10:58:45.710398+00:00",
-  "total_models": 24,
+  "catalog_id": "005bd4246610",
+  "timestamp": "2026-06-08T20:27:10.532764+00:00",
+  "total_models": 25,
   "models": [
+    {
+      "model_id": "nex-agi/nex-n2-pro:free",
+      "display_name": "Nex AGI: Nex-N2-Pro (free)",
+      "canonical_family": "nex-agi",
+      "context_length": 262144,
+      "created": 1780937140,
+      "description": "Nex-N2-Pro is an agentic mixture-of-experts model from Nex AGI, with 17B active parameters out of 397B total. Built on the Qwen3.5 architecture, it accepts text and image input and produces...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 262144,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen3",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nvidia/nemotron-3.5-content-safety:free",
       "display_name": "NVIDIA: Nemotron 3.5 Content Safety (free)",
