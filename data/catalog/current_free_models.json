@@ -1,7 +1,7 @@
 {
-  "catalog_id": "0ef25bb35d22",
-  "timestamp": "2026-06-10T02:07:39.984662+00:00",
-  "total_models": 24,
+  "catalog_id": "6170f4782e24",
+  "timestamp": "2026-06-10T20:40:24.069227+00:00",
+  "total_models": 23,
   "models": [
     {
       "model_id": "nex-agi/nex-n2-pro:free",
@@ -269,41 +269,6 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "moonshotai/kimi-k2.6:free",
-      "display_name": "MoonshotAI: Kimi K2.6 (free)",
-      "canonical_family": "moonshotai",
-      "context_length": 262144,
-      "created": 1776699402,
-      "description": "Kimi K2.6 is Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration. It handles complex end-to-end coding tasks across Python, Rust, and Go, and...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "reasoning",
-        "tool_choice",
-        "tools"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
         ],
         "output_modalities": [
           "text"
