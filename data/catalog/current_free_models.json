@@ -1,8 +1,58 @@
 {
-  "catalog_id": "6170f4782e24",
-  "timestamp": "2026-06-10T20:40:24.069227+00:00",
-  "total_models": 23,
+  "catalog_id": "f5aa2e9e025c",
+  "timestamp": "2026-06-16T17:09:52.589189+00:00",
+  "total_models": 24,
   "models": [
+    {
+      "model_id": "moonshotai/kimi-k2.7-code",
+      "display_name": "MoonshotAI: Kimi K2.7 Code",
+      "canonical_family": "moonshotai",
+      "context_length": 262144,
+      "created": 1781266361,
+      "description": "MoonshotAI: Kimi K2.7 Code is a coding-focused model in Moonshot AI's Kimi K2 family, built to complete end-to-end programming tasks reliably over long contexts. It uses a native multimodal mixture-of-experts...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 16384,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nex-agi/nex-n2-pro:free",
       "display_name": "Nex AGI: Nex-N2-Pro (free)",
@@ -294,14 +344,19 @@
         "is_moderated": false
       },
       "supported_parameters": [
+        "frequency_penalty",
         "include_reasoning",
         "max_tokens",
+        "presence_penalty",
         "reasoning",
+        "repetition_penalty",
         "response_format",
         "seed",
+        "stop",
         "temperature",
         "tool_choice",
         "tools",
+        "top_k",
         "top_p"
       ],
       "architecture": {
@@ -696,14 +751,21 @@
         "is_moderated": true
       },
       "supported_parameters": [
+        "frequency_penalty",
         "include_reasoning",
         "max_tokens",
+        "presence_penalty",
         "reasoning",
+        "repetition_penalty",
+        "response_format",
         "seed",
         "stop",
+        "structured_outputs",
         "temperature",
         "tool_choice",
-        "tools"
+        "tools",
+        "top_k",
+        "top_p"
       ],
       "architecture": {
         "modality": "text->text",
