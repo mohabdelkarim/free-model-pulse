@@ -1,8 +1,50 @@
 {
-  "catalog_id": "6170f4782e24",
-  "timestamp": "2026-06-16T21:12:16.665609+00:00",
-  "total_models": 23,
+  "catalog_id": "f596490b53e4",
+  "timestamp": "2026-06-18T02:31:34.798806+00:00",
+  "total_models": 24,
   "models": [
+    {
+      "model_id": "cohere/north-mini-code:free",
+      "display_name": "Cohere: North Mini Code (free)",
+      "canonical_family": "cohere",
+      "context_length": 256000,
+      "created": 1781723748,
+      "description": "North Mini Code is Cohere's first agentic coding model and the debut of its North family. A sparse mixture-of-experts model with 30B total parameters and 3B active, it is optimized...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 256000,
+        "max_completion_tokens": 64000,
+        "is_moderated": true
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Cohere",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nex-agi/nex-n2-pro:free",
       "display_name": "Nex AGI: Nex-N2-Pro (free)",
@@ -211,7 +253,7 @@
       "canonical_family": "poolside",
       "context_length": 262144,
       "created": 1777389604,
-      "description": "Laguna XS.2 is the second-generation model in the XS size class from [Poolside](https://poolside.ai), their efficient coding agent series. It combines tool calling and reasoning capabilities with a compact footprint, offering...",
+      "description": "Laguna XS.2 is the second-generation model in the XS size class from [Poolside](https://poolside.ai/), their efficient coding agent series. It combines tool calling and reasoning capabilities with a compact footprint, offering...",
       "pricing": {
         "prompt": "0",
         "completion": "0"
@@ -261,6 +303,7 @@
         "include_reasoning",
         "max_tokens",
         "reasoning",
+        "structured_outputs",
         "temperature",
         "tool_choice",
         "tools"
@@ -289,7 +332,7 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 262144,
+        "context_length": 131072,
         "max_completion_tokens": 32768,
         "is_moderated": false
       },
@@ -342,6 +385,7 @@
       "supported_parameters": [
         "include_reasoning",
         "max_tokens",
+        "min_p",
         "reasoning",
         "response_format",
         "seed",
@@ -349,6 +393,8 @@
         "temperature",
         "tool_choice",
         "tools",
+        "top_a",
+        "top_k",
         "top_p"
       ],
       "architecture": {
@@ -665,12 +711,16 @@
       "supported_parameters": [
         "include_reasoning",
         "max_tokens",
+        "min_p",
         "reasoning",
         "seed",
         "stop",
         "temperature",
         "tool_choice",
-        "tools"
+        "tools",
+        "top_a",
+        "top_k",
+        "top_p"
       ],
       "architecture": {
         "modality": "text->text",
@@ -697,13 +747,14 @@
       },
       "top_provider": {
         "context_length": 131072,
-        "max_completion_tokens": 8192,
-        "is_moderated": true
+        "max_completion_tokens": 32768,
+        "is_moderated": false
       },
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
         "max_tokens",
+        "min_p",
         "presence_penalty",
         "reasoning",
         "repetition_penalty",
@@ -714,6 +765,7 @@
         "temperature",
         "tool_choice",
         "tools",
+        "top_a",
         "top_k",
         "top_p"
       ],
