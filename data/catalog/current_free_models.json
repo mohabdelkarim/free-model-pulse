@@ -1,7 +1,7 @@
 {
-  "catalog_id": "f596490b53e4",
-  "timestamp": "2026-06-18T02:31:34.798806+00:00",
-  "total_models": 24,
+  "catalog_id": "7f420a1cec31",
+  "timestamp": "2026-06-22T16:20:59.468714+00:00",
+  "total_models": 23,
   "models": [
     {
       "model_id": "cohere/north-mini-code:free",
@@ -42,49 +42,6 @@
           "text"
         ],
         "tokenizer": "Cohere",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nex-agi/nex-n2-pro:free",
-      "display_name": "Nex AGI: Nex-N2-Pro (free)",
-      "canonical_family": "nex-agi",
-      "context_length": 262144,
-      "created": 1780937140,
-      "description": "Nex-N2-Pro is an agentic mixture-of-experts model from Nex AGI, with 17B active parameters out of 397B total. Built on the Qwen3.5 architecture, it accepts text and image input and produces...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 262144,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Qwen3",
         "instruct_type": null
       }
     },
@@ -289,7 +246,7 @@
       "canonical_family": "poolside",
       "context_length": 262144,
       "created": 1777388504,
-      "description": "Laguna M.1 is the flagship coding agent model from [Poolside](https://poolside.ai), optimized for complex software engineering tasks. Designed for agentic coding workflows, it supports tool calling and reasoning, with a 128K...",
+      "description": "Laguna M.1 is the flagship coding agent model from [Poolside](https://poolside.ai/), optimized for complex software engineering tasks. Designed for agentic coding workflows, it supports tool calling and reasoning, with a 256K...",
       "pricing": {
         "prompt": "0",
         "completion": "0"
@@ -303,7 +260,6 @@
         "include_reasoning",
         "max_tokens",
         "reasoning",
-        "structured_outputs",
         "temperature",
         "tool_choice",
         "tools"
@@ -477,7 +433,10 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_outputs",
         "temperature",
+        "tool_choice",
+        "tools",
         "top_k",
         "top_p"
       ],
@@ -517,6 +476,7 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_outputs",
         "temperature",
         "top_k",
         "top_p"
