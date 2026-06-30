@@ -1,7 +1,7 @@
 {
-  "catalog_id": "7f420a1cec31",
-  "timestamp": "2026-06-25T19:41:56.324767+00:00",
-  "total_models": 23,
+  "catalog_id": "e9052985caa0",
+  "timestamp": "2026-06-30T13:47:52.019580+00:00",
+  "total_models": 22,
   "models": [
     {
       "model_id": "cohere/north-mini-code:free",
@@ -106,49 +106,6 @@
         "temperature",
         "tool_choice",
         "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "openrouter/owl-alpha",
-      "display_name": "Owl Alpha",
-      "canonical_family": "openrouter",
-      "context_length": 1048756,
-      "created": 1777398589,
-      "description": "Owl Alpha is a high-performance foundation model designed for agentic workloads. Natively supports tool use, and long-context tasks, with strong performance in code generation, automated workflows, and complex instruction execution....",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048756,
-        "max_completion_tokens": 262144,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "logit_bias",
-        "max_tokens",
-        "presence_penalty",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tools",
-        "top_k",
         "top_p"
       ],
       "architecture": {
@@ -302,6 +259,7 @@
         "response_format",
         "seed",
         "stop",
+        "structured_outputs",
         "temperature",
         "tool_choice",
         "tools",
