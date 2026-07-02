@@ -1,7 +1,7 @@
 {
-  "catalog_id": "cf1e5280bf17",
-  "timestamp": "2026-07-01T19:25:32.520762+00:00",
-  "total_models": 23,
+  "catalog_id": "e9052985caa0",
+  "timestamp": "2026-07-02T01:54:51.272925+00:00",
+  "total_models": 22,
   "models": [
     {
       "model_id": "cohere/north-mini-code:free",
@@ -42,37 +42,6 @@
           "text"
         ],
         "tokenizer": "Cohere",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "~anthropic/claude-fable-latest",
-      "display_name": "Anthropic: Claude Fable Latest",
-      "canonical_family": "~anthropic",
-      "context_length": 1000000,
-      "created": 1781029944,
-      "description": "This model always redirects to the latest model in the Claude Fable family.",
-      "pricing": {
-        "prompt": "-1",
-        "completion": "-1"
-      },
-      "top_provider": {
-        "context_length": null,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "supported_parameters": [],
-      "architecture": {
-        "modality": "text+image+file->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "file"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Router",
         "instruct_type": null
       }
     },
