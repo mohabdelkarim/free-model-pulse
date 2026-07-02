@@ -1,8 +1,44 @@
 {
-  "catalog_id": "e9052985caa0",
-  "timestamp": "2026-07-02T01:54:51.272925+00:00",
-  "total_models": 22,
+  "catalog_id": "4cfc7910e339",
+  "timestamp": "2026-07-02T19:03:34.445670+00:00",
+  "total_models": 23,
   "models": [
+    {
+      "model_id": "poolside/laguna-xs-2.1:free",
+      "display_name": "Poolside: Laguna XS 2.1 (free)",
+      "canonical_family": "poolside",
+      "context_length": 262144,
+      "created": 1783002429,
+      "description": "Laguna XS 2.1 is the latest coding agent model in the 33B-A3B category from [Poolside](https://poolside.ai/) and a step forward from their Laguna XS.2 model (released in April 2026). It combines...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "temperature",
+        "tool_choice",
+        "tools"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "cohere/north-mini-code:free",
       "display_name": "Cohere: North Mini Code (free)",
