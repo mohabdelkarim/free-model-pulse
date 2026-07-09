@@ -1,7 +1,7 @@
 {
-  "catalog_id": "d6f5641ad98b",
-  "timestamp": "2026-07-06T14:48:04.039601+00:00",
-  "total_models": 24,
+  "catalog_id": "9e2c22e8ccd5",
+  "timestamp": "2026-07-09T14:20:40.077222+00:00",
+  "total_models": 23,
   "models": [
     {
       "model_id": "tencent/hy3:free",
@@ -28,6 +28,7 @@
         "repetition_penalty",
         "seed",
         "stop",
+        "structured_outputs",
         "temperature",
         "tool_choice",
         "tools",
@@ -232,42 +233,6 @@
           "audio",
           "image",
           "video"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "poolside/laguna-xs.2:free",
-      "display_name": "Poolside: Laguna XS.2 (free)",
-      "canonical_family": "poolside",
-      "context_length": 262144,
-      "created": 1777389604,
-      "description": "Laguna XS.2 is the second-generation model in the XS size class from [Poolside](https://poolside.ai/), their efficient coding agent series. It combines tool calling and reasoning capabilities with a compact footprint, offering...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "temperature",
-        "tool_choice",
-        "tools"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
         ],
         "output_modalities": [
           "text"
