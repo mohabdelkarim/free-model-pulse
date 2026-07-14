@@ -1,7 +1,7 @@
 {
-  "catalog_id": "3bdc9e1ba833",
-  "timestamp": "2026-07-13T19:06:52.001542+00:00",
-  "total_models": 21,
+  "catalog_id": "37430aca14bb",
+  "timestamp": "2026-07-14T01:07:32.629961+00:00",
+  "total_models": 20,
   "models": [
     {
       "model_id": "tencent/hy3:free",
@@ -341,22 +341,18 @@
       },
       "top_provider": {
         "context_length": 262144,
-        "max_completion_tokens": 8192,
-        "is_moderated": true
+        "max_completion_tokens": 32768,
+        "is_moderated": false
       },
       "supported_parameters": [
         "include_reasoning",
         "max_tokens",
-        "min_p",
         "reasoning",
         "response_format",
         "seed",
-        "stop",
         "temperature",
         "tool_choice",
         "tools",
-        "top_a",
-        "top_k",
         "top_p"
       ],
       "architecture": {
@@ -574,49 +570,6 @@
       }
     },
     {
-      "model_id": "openai/gpt-oss-120b:free",
-      "display_name": "OpenAI: gpt-oss-120b (free)",
-      "canonical_family": "openai",
-      "context_length": 131072,
-      "created": 1754414231,
-      "description": "gpt-oss-120b is an open-weight, 117B-parameter Mixture-of-Experts (MoE) language model from OpenAI designed for high-reasoning, agentic, and general-purpose production use cases. It activates 5.1B parameters per forward pass and is optimized...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 131072,
-        "is_moderated": true
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "min_p",
-        "reasoning",
-        "reasoning_effort",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_a",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
-        "instruct_type": null
-      }
-    },
-    {
       "model_id": "openai/gpt-oss-20b:free",
       "display_name": "OpenAI: gpt-oss-20b (free)",
       "canonical_family": "openai",
@@ -637,7 +590,6 @@
         "include_reasoning",
         "logprobs",
         "max_tokens",
-        "min_p",
         "presence_penalty",
         "reasoning",
         "reasoning_effort",
@@ -649,7 +601,6 @@
         "temperature",
         "tool_choice",
         "tools",
-        "top_a",
         "top_k",
         "top_logprobs",
         "top_p"
