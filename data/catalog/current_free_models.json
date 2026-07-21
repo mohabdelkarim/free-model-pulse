@@ -1,8 +1,44 @@
 {
-  "catalog_id": "3e63446db10f",
-  "timestamp": "2026-07-21T01:15:03.292352+00:00",
-  "total_models": 13,
+  "catalog_id": "89dcf69bbff7",
+  "timestamp": "2026-07-21T18:59:54.313613+00:00",
+  "total_models": 14,
   "models": [
+    {
+      "model_id": "poolside/laguna-s-2.1:free",
+      "display_name": "Poolside: Laguna S 2.1 (free)",
+      "canonical_family": "poolside",
+      "context_length": 262144,
+      "created": 1784652683,
+      "description": "Laguna S 2.1 is the latest coding agent model from [Poolside](<https://poolside.ai/>). Laguna S 2.1 is a 118B total parameter model with 8B active parameters, scoring 70.2% on Terminal-Bench 2.1 and...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "temperature",
+        "tool_choice",
+        "tools"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "poolside/laguna-xs-2.1:free",
       "display_name": "Poolside: Laguna XS 2.1 (free)",
@@ -328,7 +364,7 @@
       "model_id": "nvidia/nemotron-3-super-120b-a12b:free",
       "display_name": "NVIDIA: Nemotron 3 Super (free)",
       "canonical_family": "nvidia",
-      "context_length": 1000000,
+      "context_length": 262144,
       "created": 1773245239,
       "description": "NVIDIA Nemotron 3 Super is a 120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications. Built on a hybrid Mamba-Transformer...",
       "pricing": {
