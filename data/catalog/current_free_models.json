@@ -1,8 +1,53 @@
 {
-  "catalog_id": "89dcf69bbff7",
-  "timestamp": "2026-07-21T18:59:54.313613+00:00",
-  "total_models": 14,
+  "catalog_id": "aac4aa85d76d",
+  "timestamp": "2026-07-23T18:54:40.161034+00:00",
+  "total_models": 15,
   "models": [
+    {
+      "model_id": "inclusionai/ling-3.0-flash:free",
+      "display_name": "Ling-3.0-flash (free)",
+      "canonical_family": "inclusionai",
+      "context_length": 262144,
+      "created": 1784818580,
+      "description": "*Ling-3.0-flash* is a *124B-parameter Mixture-of-Experts (MoE) model*, with approximately *5.1B parameters activated per token*. The model is designed with *token efficiency and production-scale agentic inference* as key priorities, enabling developers...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "poolside/laguna-s-2.1:free",
       "display_name": "Poolside: Laguna S 2.1 (free)",
