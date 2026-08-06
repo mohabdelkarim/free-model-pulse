@@ -1,15 +1,15 @@
 {
-  "catalog_id": "b1395a4e088c",
-  "timestamp": "2026-07-28T13:22:44.634506+00:00",
+  "catalog_id": "97b40cc81fb2",
+  "timestamp": "2026-08-06T22:39:51.613426+00:00",
   "total_models": 14,
   "models": [
     {
-      "model_id": "inclusionai/ling-3.0-flash:free",
-      "display_name": "Ling-3.0-flash (free)",
+      "model_id": "inclusionai/ling-3.0-tiny:free",
+      "display_name": "inclusionAI: Ling 3.0 Tiny (free)",
       "canonical_family": "inclusionai",
       "context_length": 262144,
-      "created": 1784818580,
-      "description": "*Ling-3.0-flash* is a *124B-parameter Mixture-of-Experts (MoE) model*, with approximately *5.1B parameters activated per token*. The model is designed with *token efficiency and production-scale agentic inference* as key priorities, enabling developers...",
+      "created": 1786034890,
+      "description": "Ling 3.0 Tiny is a mixture-of-experts model from InclusionAI, with 1.3B active parameters out of 7.9B total. It is designed for responsive agents, instruction following, and multi-turn conversations, with switchable...",
       "pricing": {
         "prompt": "0",
         "completion": "0"
