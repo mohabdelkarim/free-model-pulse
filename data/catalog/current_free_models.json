@@ -1,8 +1,46 @@
 {
-  "catalog_id": "97b40cc81fb2",
-  "timestamp": "2026-08-06T22:39:51.613426+00:00",
-  "total_models": 14,
+  "catalog_id": "554542b45b65",
+  "timestamp": "2026-08-11T18:41:09.266807+00:00",
+  "total_models": 15,
   "models": [
+    {
+      "model_id": "nvidia/nemotron-3.5-lightning:free",
+      "display_name": "NVIDIA: Nemotron 3.5 Lightning (free)",
+      "canonical_family": "nvidia",
+      "context_length": 1000000,
+      "created": 1786452751,
+      "description": "NVIDIA Nemotron 3.5 Lightning is an open mixture-of-experts model from NVIDIA, with 3B active parameters out of 30B total. It is suited for high-throughput agentic workloads and specialized tasks that...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 65536,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "inclusionai/ling-3.0-tiny:free",
       "display_name": "inclusionAI: Ling 3.0 Tiny (free)",
