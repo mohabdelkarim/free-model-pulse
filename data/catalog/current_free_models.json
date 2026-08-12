@@ -1,8 +1,57 @@
 {
-  "catalog_id": "554542b45b65",
-  "timestamp": "2026-08-11T18:41:09.266807+00:00",
-  "total_models": 15,
+  "catalog_id": "9dd4fd44c446",
+  "timestamp": "2026-08-12T00:46:11.079006+00:00",
+  "total_models": 16,
   "models": [
+    {
+      "model_id": "liquid/lfm-2.5-2.6b:free",
+      "display_name": "LiquidAI: LFM2.5-2.6B (free)",
+      "canonical_family": "liquid",
+      "context_length": 128000,
+      "created": 1786470519,
+      "description": "LFM2.5-2.6B is a compact reasoning model from Liquid AI. It is suited for agent workflows, data extraction, RAG, and long-context processing. Liquid advises against using it for agentic coding or...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 128000,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_completion_tokens",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nvidia/nemotron-3.5-lightning:free",
       "display_name": "NVIDIA: Nemotron 3.5 Lightning (free)",
