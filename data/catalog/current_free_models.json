@@ -1,7 +1,7 @@
 {
-  "catalog_id": "9dd4fd44c446",
-  "timestamp": "2026-08-13T00:49:49.015055+00:00",
-  "total_models": 16,
+  "catalog_id": "b172694446b6",
+  "timestamp": "2026-08-13T12:37:04.547692+00:00",
+  "total_models": 15,
   "models": [
     {
       "model_id": "liquid/lfm-2.5-2.6b:free",
@@ -76,51 +76,6 @@
         "temperature",
         "tool_choice",
         "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "inclusionai/ling-3.0-tiny:free",
-      "display_name": "inclusionAI: Ling 3.0 Tiny (free)",
-      "canonical_family": "inclusionai",
-      "context_length": 262144,
-      "created": 1786034890,
-      "description": "Ling 3.0 Tiny is a mixture-of-experts model from InclusionAI, with 1.3B active parameters out of 7.9B total. It is designed for responsive agents, instruction following, and multi-turn conversations, with switchable...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "architecture": {
