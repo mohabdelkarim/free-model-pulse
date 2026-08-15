@@ -2,7 +2,8 @@ name: 🔍 Model Discovery
 
 on:
   schedule:
-    - cron: '0 */6 * * 1-5'
+    # Once daily Mon-Fri (UTC). No weekend runs; keeps Level 1-2 base quiet.
+    - cron: '0 12 * * 1-5'
   workflow_dispatch:
     inputs:
       force:
