@@ -6,28 +6,27 @@ Benchmarks free models using stable prompts from prompts.json.
 Records results to append-only CSV raw datasets.
 """
 
-import os
-import json
-import time
 import hashlib
-import requests
-from datetime import datetime, timezone
+import json
+import os
+import time
 from typing import Optional
 
+import requests
+
 from common import (
-    CURRENT_MODELS_FILE,
     BENCHMARK_RUNS_FILE,
+    CURRENT_MODELS_FILE,
+    append_csv_row,
+    get_logger,
+    get_run_id,
     load_json,
     load_prompts,
-    get_run_id,
     now_iso,
-    append_csv_row,
     safe_float,
     safe_int,
     setup_logging,
-    get_logger,
 )
-
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 REQUEST_TIMEOUT = int(os.getenv("BENCHMARK_TIMEOUT_SEC", "120"))

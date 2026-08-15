@@ -88,9 +88,9 @@ jobs:
           git config user.email "mohaabdelkarim2@gmail.com"
           git add data/catalog/
           if git diff --cached --quiet; then
-            echo "Nothing to commit — catalog unchanged."
+            echo "Nothing to commit. Catalog unchanged."
           else
-            git commit -m "chore(catalog): snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ) — ${{ steps.read.outputs.total_models }} free models"
+            git commit -m "chore(catalog): snapshot $(date -u +%Y%m%dT%H%M%SZ) ${{ steps.read.outputs.total_models }} free models"
             git push
           fi
 

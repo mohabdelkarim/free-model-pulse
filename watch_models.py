@@ -7,27 +7,24 @@ Handles rate limits, transient failures, and model churn.
 Detects new/removed models and stores catalog history.
 """
 
-import os
-import json
-import time
 import hashlib
-import requests
-from datetime import datetime, timezone
+import json
+import os
+import time
 from typing import Optional
-from pathlib import Path
+
+import requests
 
 from common import (
-    CATALOG_DIR,
     CURRENT_MODELS_FILE,
     HISTORY_FILE,
-    load_json,
-    save_json,
     append_jsonl,
-    now_iso,
-    setup_logging,
     get_logger,
+    load_json,
+    now_iso,
+    save_json,
+    setup_logging,
 )
-
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models"
 REQUEST_TIMEOUT = 30

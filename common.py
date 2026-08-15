@@ -11,19 +11,17 @@ Provides:
 - Structured logging helpers
 """
 
-import os
-import sys
 import csv
 import json
-import uuid
 import logging
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Any
-from functools import wraps
-
+from typing import Any, Optional
 
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 CATALOG_DIR = DATA_DIR / "catalog"
@@ -276,7 +274,7 @@ def append_csv_row(path: Path, row: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     columns = list(row.keys())
-    is_new = ensure_csv_header(path, columns)
+    ensure_csv_header(path, columns)
 
     with open(path, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=columns)

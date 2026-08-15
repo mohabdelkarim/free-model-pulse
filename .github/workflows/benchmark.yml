@@ -1,4 +1,4 @@
-name: ⚡ Benchmark & Analysis
+name: Benchmark and Analysis
 
 on:
   schedule:
@@ -15,7 +15,7 @@ on:
         type: string
         required: false
       force_catalog:
-        description: 'Force re-fetch catalog'
+        description: 'Force re fetch catalog'
         type: boolean
         default: false
   repository_dispatch:
@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   run:
-    name: Test → Benchmark → Analyze → Commit
+    name: Test then Benchmark then Analyze then Commit
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -41,22 +41,31 @@ jobs:
 
     steps:
       - name: Checkout
+        id: checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
+        id: setup_python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests pytest
+        id: install
+        run: pip install -r requirements.txt
+
+      - name: Lint
+        id: lint
+        run: ruff check .
 
       - name: Run unit tests
+        id: tests
         run: pytest tests/ -v
 
       - name: Refresh catalog
+        id: catalog
         run: |
           if [ "${{ inputs.force_catalog }}" = "true" ]; then
             python watch_models.py --force
@@ -65,6 +74,7 @@ jobs:
           fi
 
       - name: Run benchmark
+        id: benchmark
         run: |
           REASON="${{ inputs.benchmark_reason || 'scheduled' }}"
           PROMPT_ARG=""
@@ -73,154 +83,20 @@ jobs:
           fi
           python benchmark.py --reason "$REASON" $PROMPT_ARG
 
-      - name: Generate model index
-        run: python analyze.py --min-runs 1
+      - name: Generate index and publish tables
+        id: analyze
+        run: python analyze.py --min-runs 1 --update-readme --write-pages
 
-      - name: Update README leaderboard
-        run: |
-          python - <<'PYEOF'
-          import csv, json, os, re
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          index_path   = Path('data/derived/model_index.csv')
-          readme_path  = Path('README.md')
-          catalog_path = Path('data/catalog/current_free_models.json')
-
-          if not index_path.exists():
-              print('No model_index.csv yet — skipping README update.')
-              exit(0)
-
-          rows = []
-          with open(index_path) as f:
-              for r in csv.DictReader(f):
-                  rows.append(r)
-
-          if not rows:
-              print('model_index.csv is empty — skipping.')
-              exit(0)
-
-          # Load catalog keyed by model_id — normalized objects from watch_models.py
-          # Structure: { model_id: { context_length, created, canonical_family, ... } }
-          catalog = {}
-          if catalog_path.exists():
-              with open(catalog_path) as f:
-                  try:
-                      raw = json.load(f)
-                      entries = raw.get('models', [])
-                      for m in entries:
-                          mid = m.get('model_id', '')
-                          if mid:
-                              catalog[mid] = m
-                  except Exception as e:
-                      print(f'Catalog parse error: {e}')
-
-          def sort_key(r):
-              try:
-                  sr = float(r.get('success_rate') or 0)
-              except:
-                  sr = 0
-              try:
-                  lat = float(r.get('latency_sec_median') or 999)
-              except:
-                  lat = 999
-              return (-sr, lat)
-
-          rows.sort(key=sort_key)
-
-          medals = ['🥇', '🥈', '🥉']
-
-          lines = [
-              '| # | Model | Context | Latency | Range | Tokens/s | Released | Status |',
-              '|---|-------|---------|---------|-------|----------|----------|--------|',
-          ]
-
-          for i, r in enumerate(rows[:30]):
-              rank     = medals[i] if i < 3 else str(i + 1)
-              model_id = r.get('model_id', '?')
-              name     = r.get('display_name') or model_id
-
-              cat = catalog.get(model_id, {})
-
-              # Context — from model_index.csv first, fallback to catalog
-              ctx_raw = r.get('context_length') or cat.get('context_length')
-              if ctx_raw:
-                  try:
-                      ctx_val = int(float(ctx_raw))
-                      ctx = f"{ctx_val // 1000}k" if ctx_val >= 1000 else str(ctx_val)
-                  except:
-                      ctx = '?'
-              else:
-                  ctx = '?'
-
-              # Latency median
-              lat_raw = r.get('latency_sec_median', '')
-              lat = f"{float(lat_raw):.2f}s" if lat_raw else '?'
-
-              # Range min–max
-              min_raw = r.get('latency_sec_min', '')
-              max_raw = r.get('latency_sec_max', '')
-              if min_raw and max_raw:
-                  rng = f"{float(min_raw):.1f}s–{float(max_raw):.1f}s"
-              else:
-                  rng = '?'
-
-              # Tokens/s
-              tps_raw = r.get('tokens_per_sec_avg', '')
-              tps = f"{float(tps_raw):.0f}" if tps_raw else '?'
-
-              # Released — from catalog 'created' unix timestamp
-              created_raw = cat.get('created')
-              if created_raw:
-                  try:
-                      dt = datetime.fromtimestamp(int(created_raw), tz=timezone.utc)
-                      released = dt.strftime('%b %Y')
-                  except:
-                      released = '?'
-              else:
-                  released = '?'
-
-              # Status
-              try:
-                  sr = float(r.get('success_rate') or 0)
-                  status = '🟢' if sr >= 0.5 else '🔴'
-              except:
-                  status = '⚪'
-
-              lines.append(
-                  f'| {rank} | `{name}` | {ctx} | {lat} | {rng} | {tps} | {released} | {status} |'
-              )
-
-          updated_at = os.popen('date -u +"%Y-%m-%d %H:%M UTC"').read().strip()
-          table_block = '\n'.join([
-              '<!-- LEADERBOARD_START -->',
-              f'> 🕒 Last updated: **{updated_at}** &nbsp;|&nbsp; Auto-generated by GitHub Actions',
-              '',
-          ] + lines + [
-              '',
-              '<!-- LEADERBOARD_END -->',
-          ])
-
-          content = readme_path.read_text()
-          pattern = r'<!-- LEADERBOARD_START -->.*?<!-- LEADERBOARD_END -->'
-          if re.search(pattern, content, re.DOTALL):
-              new_content = re.sub(pattern, table_block, content, flags=re.DOTALL)
-          else:
-              new_content = content + '\n\n## 📊 Live Leaderboard\n\n' + table_block + '\n'
-
-          readme_path.write_text(new_content)
-          print(f'README updated with {len(rows)} models.')
-          PYEOF
-
-      - name: Commit data + README
+      - name: Commit data README and Pages
+        id: commit
         run: |
           git config user.name "MOHAbdelkarim"
           git config user.email "mohaabdelkarim2@gmail.com"
-          git add -f data/ README.md
+          git add -f data/ README.md docs/
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
-            git commit -m "ci(data): benchmark run $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git commit -m "ci(data): benchmark run $(date -u +%Y%m%dT%H%M%SZ)"
             git pull --rebase origin main
             git push
           fi
@@ -228,17 +104,31 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          echo "## ⚡ Benchmark Run Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Benchmark | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Analysis | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| README update | ✅ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Committed | ✅ |" >> $GITHUB_STEP_SUMMARY
+          mark() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              skipped) echo "⏭️" ;;
+              cancelled) echo "🚫" ;;
+              *) echo "$1" ;;
+            esac
+          }
+          {
+            echo "## Benchmark Run Summary"
+            echo ""
+            echo "| Step | Status |"
+            echo "|---|---|"
+            echo "| Checkout | $(mark ${{ steps.checkout.outcome }}) |"
+            echo "| Install | $(mark ${{ steps.install.outcome }}) |"
+            echo "| Lint | $(mark ${{ steps.lint.outcome }}) |"
+            echo "| Tests | $(mark ${{ steps.tests.outcome }}) |"
+            echo "| Catalog | $(mark ${{ steps.catalog.outcome }}) |"
+            echo "| Benchmark | $(mark ${{ steps.benchmark.outcome }}) |"
+            echo "| Analyze | $(mark ${{ steps.analyze.outcome }}) |"
+            echo "| Commit | $(mark ${{ steps.commit.outcome }}) |"
+          } >> "$GITHUB_STEP_SUMMARY"
           if [ -f data/derived/model_index.csv ]; then
             TOTAL=$(tail -n +2 data/derived/model_index.csv | wc -l)
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Models in index:** $TOTAL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Models in index:** $TOTAL" >> "$GITHUB_STEP_SUMMARY"
           fi

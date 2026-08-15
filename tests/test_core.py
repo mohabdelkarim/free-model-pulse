@@ -14,30 +14,23 @@ Tests:
 Run with: pytest tests/ -v
 """
 
-import unittest
 import json
-import tempfile
-import os
 import sys
+import tempfile
+import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import MagicMock, patch
 
 ROOT_DIR = Path(__file__).parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from common import (
-    safe_float,
-    safe_int,
-    load_json,
-    save_json,
-    read_jsonl,
-    append_jsonl,
-    read_csv,
     append_csv_row,
     ensure_csv_header,
+    safe_float,
+    safe_int,
 )
-
 
 # ---------------------------------------------------------------------------
 # Safe conversions
@@ -470,7 +463,7 @@ class TestBenchmarkSingleModel(unittest.TestCase):
 class TestCircuitBreaker(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from benchmark import run_benchmark, CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_PAUSE
+        from benchmark import CIRCUIT_BREAKER_PAUSE, CIRCUIT_BREAKER_THRESHOLD, run_benchmark
         cls.run_benchmark = staticmethod(run_benchmark)
         cls.threshold = CIRCUIT_BREAKER_THRESHOLD
         cls.base_pause = CIRCUIT_BREAKER_PAUSE  # pause for the first trip

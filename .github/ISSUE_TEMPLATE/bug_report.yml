@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a failure in discovery, benchmarks, or the leaderboard
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Include enough detail to reproduce the issue.
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: Clear description of the failure
+      placeholder: Discovery succeeded but the README leaderboard did not update
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Local commands or Actions workflow run URL
+      placeholder: |
+        1. python watch_models.py
+        2. python benchmark.py
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: run_url
+    attributes:
+      label: Actions run URL
+      description: Optional link to a failed GitHub Actions run
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Discovery
+        - Benchmark
+        - Analysis
+        - README or Pages
+        - Other
+    validations:
+      required: true
