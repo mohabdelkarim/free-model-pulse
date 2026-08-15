@@ -1,8 +1,48 @@
 {
-  "catalog_id": "b172694446b6",
-  "timestamp": "2026-08-13T12:37:04.547692+00:00",
-  "total_models": 15,
+  "catalog_id": "c45eac523dd0",
+  "timestamp": "2026-08-15T11:10:39.653193+00:00",
+  "total_models": 16,
   "models": [
+    {
+      "model_id": "dots-studio/dots-3-note-preview:free",
+      "display_name": "Dots Studio: Dots3-Note Preview (free)",
+      "canonical_family": "dots-studio",
+      "context_length": 512000,
+      "created": 1786680361,
+      "description": "Dots3-Note Preview is an open-weight mixture-of-experts model from Dots Studio, with 16B active parameters out of 280B total. It is the lightest model in the Dots 3 family and is...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 512000,
+        "max_completion_tokens": 512000,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "liquid/lfm-2.5-2.6b:free",
       "display_name": "LiquidAI: LFM2.5-2.6B (free)",
@@ -16,7 +56,7 @@
       },
       "top_provider": {
         "context_length": 128000,
-        "max_completion_tokens": 32768,
+        "max_completion_tokens": 8192,
         "is_moderated": false
       },
       "supported_parameters": [
