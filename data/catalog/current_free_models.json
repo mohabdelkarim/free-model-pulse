@@ -1,7 +1,7 @@
 {
-  "catalog_id": "c45eac523dd0",
-  "timestamp": "2026-08-15T11:10:39.653193+00:00",
-  "total_models": 16,
+  "catalog_id": "7d6ff989858f",
+  "timestamp": "2026-08-17T00:36:27.436462+00:00",
+  "total_models": 17,
   "models": [
     {
       "model_id": "dots-studio/dots-3-note-preview:free",
@@ -241,6 +241,49 @@
           "text"
         ],
         "tokenizer": "Cohere",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "z-ai/glm-5.2:free",
+      "display_name": "Z.ai: GLM 5.2 (free)",
+      "canonical_family": "z-ai",
+      "context_length": 128000,
+      "created": 1781631930,
+      "description": "GLM 5.2 is a large-scale reasoning model from Z.ai. It supports text input and output with a 1M-token context window, and is suited for long-horizon agent workflows, project-level software engineering,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 128000,
+        "max_completion_tokens": 128000,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "seed",
+        "stop",
+        "temperature",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
         "instruct_type": null
       }
     },
