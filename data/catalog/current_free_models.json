@@ -1,7 +1,7 @@
 {
-  "catalog_id": "7d6ff989858f",
-  "timestamp": "2026-08-17T00:36:27.436462+00:00",
-  "total_models": 17,
+  "catalog_id": "906ad87f9fef",
+  "timestamp": "2026-08-18T12:29:59.470056+00:00",
+  "total_models": 15,
   "models": [
     {
       "model_id": "dots-studio/dots-3-note-preview:free",
@@ -35,55 +35,6 @@
         "input_modalities": [
           "text",
           "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "liquid/lfm-2.5-2.6b:free",
-      "display_name": "LiquidAI: LFM2.5-2.6B (free)",
-      "canonical_family": "liquid",
-      "context_length": 128000,
-      "created": 1786470519,
-      "description": "LFM2.5-2.6B is a compact reasoning model from Liquid AI. It is suited for agent workflows, data extraction, RAG, and long-context processing. Liquid advises against using it for agentic coding or...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 8192,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
         ],
         "output_modalities": [
           "text"
@@ -245,49 +196,6 @@
       }
     },
     {
-      "model_id": "z-ai/glm-5.2:free",
-      "display_name": "Z.ai: GLM 5.2 (free)",
-      "canonical_family": "z-ai",
-      "context_length": 128000,
-      "created": 1781631930,
-      "description": "GLM 5.2 is a large-scale reasoning model from Z.ai. It supports text input and output with a 1M-token context window, and is suited for long-horizon agent workflows, project-level software engineering,...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
       "model_id": "nvidia/nemotron-3.5-content-safety:free",
       "display_name": "NVIDIA: Nemotron 3.5 Content Safety (free)",
       "canonical_family": "nvidia",
@@ -416,7 +324,7 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 131072,
+        "context_length": 262144,
         "max_completion_tokens": 32768,
         "is_moderated": false
       },
