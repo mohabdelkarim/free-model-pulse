@@ -1,8 +1,50 @@
 {
-  "catalog_id": "7d6ff989858f",
-  "timestamp": "2026-08-19T00:36:25.955352+00:00",
-  "total_models": 17,
+  "catalog_id": "d3d298ccd642",
+  "timestamp": "2026-08-21T00:39:03.204883+00:00",
+  "total_models": 18,
   "models": [
+    {
+      "model_id": "stealth/ox-alpha",
+      "display_name": "Ox Alpha",
+      "canonical_family": "stealth",
+      "context_length": 1048576,
+      "created": 1787256295,
+      "description": "Ox Alpha is a reasoning model designed for coding, sustained agentic work, and production workloads. It is suited for long-horizon software engineering, complex reasoning, and workflows that combine text with...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "dots-studio/dots-3-note-preview:free",
       "display_name": "Dots Studio: Dots3-Note Preview (free)",
@@ -425,22 +467,14 @@
         "is_moderated": false
       },
       "supported_parameters": [
-        "frequency_penalty",
         "include_reasoning",
-        "logprobs",
         "max_tokens",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
         "response_format",
         "seed",
-        "stop",
-        "structured_outputs",
         "temperature",
         "tool_choice",
         "tools",
-        "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "architecture": {
