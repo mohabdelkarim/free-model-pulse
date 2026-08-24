@@ -1,7 +1,7 @@
 {
-  "catalog_id": "d3d298ccd642",
-  "timestamp": "2026-08-21T00:39:03.204883+00:00",
-  "total_models": 18,
+  "catalog_id": "734ea295157d",
+  "timestamp": "2026-08-24T00:38:22.835271+00:00",
+  "total_models": 19,
   "models": [
     {
       "model_id": "stealth/ox-alpha",
@@ -89,7 +89,7 @@
       "model_id": "liquid/lfm-2.5-2.6b:free",
       "display_name": "LiquidAI: LFM2.5-2.6B (free)",
       "canonical_family": "liquid",
-      "context_length": 128000,
+      "context_length": 65536,
       "created": 1786470519,
       "description": "LFM2.5-2.6B is a compact reasoning model from Liquid AI. It is suited for agent workflows, data extraction, RAG, and long-context processing. Liquid advises against using it for agentic coding or...",
       "pricing": {
@@ -97,7 +97,7 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 128000,
+        "context_length": 65536,
         "max_completion_tokens": 8192,
         "is_moderated": false
       },
@@ -173,6 +173,49 @@
       }
     },
     {
+      "model_id": "thinkingmachines/inkling-small:free",
+      "display_name": "Thinking Machines: Inkling Small (free)",
+      "canonical_family": "thinkingmachines",
+      "context_length": 262144,
+      "created": 1785443117,
+      "description": "Inkling Small is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 12B active parameters out of 276B total. It is positioned as the smaller, more efficient member of...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 262144,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "stop",
+        "temperature",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+audio->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "audio"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
       "model_id": "poolside/laguna-s-2.1:free",
       "display_name": "Poolside: Laguna S 2.1 (free)",
       "canonical_family": "poolside",
@@ -200,6 +243,49 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "thinkingmachines/inkling:free",
+      "display_name": "Thinking Machines: Inkling (free)",
+      "canonical_family": "thinkingmachines",
+      "context_length": 262144,
+      "created": 1784325956,
+      "description": "Inkling is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 41B active parameters out of 975B total. It is designed for general-purpose reasoning, coding, agentic and tool-use systems,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 262144,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "stop",
+        "temperature",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+audio->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "audio"
         ],
         "output_modalities": [
           "text"
@@ -688,54 +774,6 @@
           "text"
         ],
         "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "openai/gpt-oss-20b:free",
-      "display_name": "OpenAI: gpt-oss-20b (free)",
-      "canonical_family": "openai",
-      "context_length": 131072,
-      "created": 1754414229,
-      "description": "gpt-oss-20b is an open-weight 21B parameter model released by OpenAI under the Apache 2.0 license. It uses a Mixture-of-Experts (MoE) architecture with 3.6B active parameters per forward pass, optimized for...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "GPT",
         "instruct_type": null
       }
     }
