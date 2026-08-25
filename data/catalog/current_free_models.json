@@ -1,7 +1,7 @@
 {
-  "catalog_id": "734ea295157d",
-  "timestamp": "2026-08-24T00:38:22.835271+00:00",
-  "total_models": 19,
+  "catalog_id": "abe1d49a80fe",
+  "timestamp": "2026-08-25T00:37:28.249093+00:00",
+  "total_models": 16,
   "models": [
     {
       "model_id": "stealth/ox-alpha",
@@ -176,7 +176,7 @@
       "model_id": "thinkingmachines/inkling-small:free",
       "display_name": "Thinking Machines: Inkling Small (free)",
       "canonical_family": "thinkingmachines",
-      "context_length": 262144,
+      "context_length": 1048576,
       "created": 1785443117,
       "description": "Inkling Small is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 12B active parameters out of 276B total. It is positioned as the smaller, more efficient member of...",
       "pricing": {
@@ -184,7 +184,7 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 262144,
+        "context_length": 1048576,
         "max_completion_tokens": 262144,
         "is_moderated": false
       },
@@ -255,7 +255,7 @@
       "model_id": "thinkingmachines/inkling:free",
       "display_name": "Thinking Machines: Inkling (free)",
       "canonical_family": "thinkingmachines",
-      "context_length": 262144,
+      "context_length": 1048576,
       "created": 1784325956,
       "description": "Inkling is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 41B active parameters out of 975B total. It is designed for general-purpose reasoning, coding, agentic and tool-use systems,...",
       "pricing": {
@@ -263,7 +263,7 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 262144,
+        "context_length": 1048576,
         "max_completion_tokens": 262144,
         "is_moderated": false
       },
@@ -639,124 +639,6 @@
         "max_tokens",
         "reasoning",
         "reasoning_effort",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/nemotron-3-nano-30b-a3b:free",
-      "display_name": "NVIDIA: Nemotron 3 Nano 30B A3B (free)",
-      "canonical_family": "nvidia",
-      "context_length": 256000,
-      "created": 1765731275,
-      "description": "NVIDIA Nemotron 3 Nano 30B A3B is a small language MoE model with highest compute efficiency and accuracy for developers to build specialized agentic AI systems. The model is fully...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 256000,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "seed",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/nemotron-nano-12b-v2-vl:free",
-      "display_name": "NVIDIA: Nemotron Nano 12B 2 VL (free)",
-      "canonical_family": "nvidia",
-      "context_length": 128000,
-      "created": 1761675565,
-      "description": "NVIDIA Nemotron Nano 2 VL is a 12-billion-parameter open multimodal reasoning model designed for video understanding and document intelligence. It introduces a hybrid Transformer-Mamba architecture, combining transformer-level accuracy with Mamba’s...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 128000,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "seed",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image+video->text",
-        "input_modalities": [
-          "image",
-          "text",
-          "video"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/nemotron-nano-9b-v2:free",
-      "display_name": "NVIDIA: Nemotron Nano 9B V2 (free)",
-      "canonical_family": "nvidia",
-      "context_length": 128000,
-      "created": 1757106807,
-      "description": "NVIDIA-Nemotron-Nano-9B-v2 is a large language model (LLM) trained from scratch by NVIDIA, and designed as a unified model for both reasoning and non-reasoning tasks. It responds to user queries and...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
         "response_format",
         "seed",
         "structured_outputs",
