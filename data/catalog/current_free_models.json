@@ -1,7 +1,7 @@
 {
-  "catalog_id": "abe1d49a80fe",
-  "timestamp": "2026-08-25T00:37:28.249093+00:00",
-  "total_models": 16,
+  "catalog_id": "bd9596310001",
+  "timestamp": "2026-08-25T12:32:56.312093+00:00",
+  "total_models": 18,
   "models": [
     {
       "model_id": "stealth/ox-alpha",
@@ -496,6 +496,47 @@
       }
     },
     {
+      "model_id": "minimax/minimax-m3:free",
+      "display_name": "MiniMax: MiniMax M3 (free)",
+      "canonical_family": "minimax",
+      "context_length": 1048576,
+      "created": 1780245374,
+      "description": "MiniMax-M3 is a multimodal foundation model from MiniMax. It supports text, image, and video inputs with text output, a 1M-token context window, and is suited for long-horizon agentic work, coding,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": null,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
       "model_id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
       "display_name": "NVIDIA: Nemotron 3 Nano Omni (free)",
       "canonical_family": "nvidia",
@@ -615,6 +656,45 @@
           "text"
         ],
         "tokenizer": "Gemma",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "minimax/minimax-m2.7:free",
+      "display_name": "MiniMax: MiniMax M2.7 (free)",
+      "canonical_family": "minimax",
+      "context_length": 196608,
+      "created": 1773836697,
+      "description": "MiniMax-M2.7 is a next-generation large language model designed for autonomous, real-world productivity and continuous improvement. Built to actively participate in its own evolution, M2.7 integrates advanced agentic capabilities through multi-agent...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 196608,
+        "max_completion_tokens": null,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
         "instruct_type": null
       }
     },
