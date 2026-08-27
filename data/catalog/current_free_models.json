@@ -1,50 +1,8 @@
 {
-  "catalog_id": "bd9596310001",
-  "timestamp": "2026-08-25T12:32:56.312093+00:00",
-  "total_models": 18,
+  "catalog_id": "903a35b7923a",
+  "timestamp": "2026-08-27T05:38:39.133454+00:00",
+  "total_models": 17,
   "models": [
-    {
-      "model_id": "stealth/ox-alpha",
-      "display_name": "Ox Alpha",
-      "canonical_family": "stealth",
-      "context_length": 1048576,
-      "created": 1787256295,
-      "description": "Ox Alpha is a reasoning model designed for coding, sustained agentic work, and production workloads. It is suited for long-horizon software engineering, complex reasoning, and workflows that combine text with...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 131072,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "response_format",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image+video->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "video"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
     {
       "model_id": "dots-studio/dots-3-note-preview:free",
       "display_name": "Dots Studio: Dots3-Note Preview (free)",
@@ -58,7 +16,7 @@
       },
       "top_provider": {
         "context_length": 512000,
-        "max_completion_tokens": 512000,
+        "max_completion_tokens": 460800,
         "is_moderated": false
       },
       "supported_parameters": [
@@ -385,7 +343,7 @@
       },
       "top_provider": {
         "context_length": 256000,
-        "max_completion_tokens": 256000,
+        "max_completion_tokens": 230400,
         "is_moderated": false
       },
       "supported_parameters": [
@@ -508,7 +466,7 @@
       },
       "top_provider": {
         "context_length": 1048576,
-        "max_completion_tokens": null,
+        "max_completion_tokens": 943718,
         "is_moderated": false
       },
       "supported_parameters": [
@@ -672,7 +630,7 @@
       },
       "top_provider": {
         "context_length": 196608,
-        "max_completion_tokens": null,
+        "max_completion_tokens": 176947,
         "is_moderated": false
       },
       "supported_parameters": [
@@ -711,7 +669,7 @@
       },
       "top_provider": {
         "context_length": 262144,
-        "max_completion_tokens": 262144,
+        "max_completion_tokens": 235929,
         "is_moderated": false
       },
       "supported_parameters": [
