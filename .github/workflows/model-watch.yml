@@ -105,3 +105,17 @@ jobs:
           echo "| Total free models | **${{ steps.read.outputs.total_models }}** |" >> $GITHUB_STEP_SUMMARY
           echo "| Changes detected | ${{ steps.read.outputs.has_changes }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Run at | $(date -u +"%Y-%m-%d %H:%M UTC") |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "CI failed: ${{ github.repository }} / ${{ github.workflow }}"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*${{ github.repository }}* — `${{ github.workflow }}` failed\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"

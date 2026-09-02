@@ -132,3 +132,34 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "**Models in index:** $TOTAL" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Slack digest on success
+        if: success()
+        env:
+          SLACK_WEBHOOK_AI_PIPELINES: ${{ secrets.SLACK_WEBHOOK_AI_PIPELINES }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_AI_PIPELINES" ]; then exit 0; fi
+          TOP=$(python -c "
+          import csv
+          rows = list(csv.DictReader(open('data/derived/model_index.csv', encoding='utf-8')))
+          top = sorted(rows, key=lambda r: float(r.get('latency_sec_median') or 999))[:3]
+          print('\\n'.join(f\"• {r.get('display_name','?')}: {r.get('latency_sec_median','?')}s\" for r in top))
+          " 2>/dev/null || echo "Benchmark completed")
+          python slack_notify.py --digest \
+            --title "free-model-pulse" \
+            --text "Top latency (p50):\n${TOP}" \
+            --webhook-env SLACK_WEBHOOK_AI_PIPELINES
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_ALERTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "CI failed: ${{ github.repository }} / ${{ github.workflow }}"
+            blocks:
+              - type: section
+                text:
+                  type: mrkdwn
+                  text: "*${{ github.repository }}* — `${{ github.workflow }}` failed\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
