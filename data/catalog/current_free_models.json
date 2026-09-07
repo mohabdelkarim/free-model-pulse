@@ -1,11 +1,56 @@
 {
-  "catalog_id": "6f2b05b224f8",
-  "timestamp": "2026-08-27T21:30:57.452257+00:00",
+  "catalog_id": "2d5b08457994",
+  "timestamp": "2026-09-07T01:46:02.750112+00:00",
   "total_models": 18,
   "models": [
     {
+      "model_id": "inclusionai/ling-3.0-flash-sante:free",
+      "display_name": "inclusionAI: Ling 3.0 Flash Sante (free)",
+      "canonical_family": "inclusionai",
+      "context_length": 262144,
+      "created": 1788545946,
+      "description": "Ling 3.0 Flash Sante is a health and medicine-focused mixture-of-experts model from InclusionAI, built on Ling 3.0 Flash with 5.1B active parameters out of 124B total. It is designed for...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
       "model_id": "inclusionai/ling-3.0-flash-fin:free",
-      "display_name": "Ling 3.0 Flash Fin (free)",
+      "display_name": "inclusionAI: Ling 3.0 Flash Fin (free)",
       "canonical_family": "inclusionai",
       "context_length": 262144,
       "created": 1787846290,
@@ -372,53 +417,6 @@
           "text"
         ],
         "tokenizer": "Cohere",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "z-ai/glm-5.2:free",
-      "display_name": "Z.ai: GLM 5.2 (free)",
-      "canonical_family": "z-ai",
-      "context_length": 256000,
-      "created": 1781631930,
-      "description": "GLM 5.2 is a large-scale reasoning model from Z.ai. It supports text input and output with a 1M-token context window, and is suited for long-horizon agent workflows, project-level software engineering,...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 256000,
-        "max_completion_tokens": 230400,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
         "instruct_type": null
       }
     },
