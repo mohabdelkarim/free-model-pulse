@@ -1,8 +1,55 @@
 {
-  "catalog_id": "bc120601c071",
-  "timestamp": "2026-09-09T02:02:28.127702+00:00",
-  "total_models": 18,
+  "catalog_id": "1051d5f2f91e",
+  "timestamp": "2026-09-11T01:57:52.535063+00:00",
+  "total_models": 19,
   "models": [
+    {
+      "model_id": "inclusionai/ling-3.0-flash-vl:free",
+      "display_name": "inclusionAI: Ling 3.0 Flash VL (free)",
+      "canonical_family": "inclusionai",
+      "context_length": 262144,
+      "created": 1789056114,
+      "description": "Ling 3.0 Flash VL builds on Ling 3.0 Flash (124B total / 5.5B active MoE from InclusionAI), further strengthening its language capabilities while adding native visual perception and advanced visual...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nex-agi/nex-n2.5-mini:free",
       "display_name": "Nex AGI: Nex-N2.5-Mini (free)",
@@ -35,9 +82,10 @@
         "top_p"
       ],
       "architecture": {
-        "modality": "text->text",
+        "modality": "text+image->text",
         "input_modalities": [
-          "text"
+          "text",
+          "image"
         ],
         "output_modalities": [
           "text"
@@ -326,7 +374,6 @@
       "supported_parameters": [
         "frequency_penalty",
         "include_reasoning",
-        "logprobs",
         "max_tokens",
         "presence_penalty",
         "reasoning",
@@ -335,7 +382,6 @@
         "stop",
         "temperature",
         "tools",
-        "top_logprobs",
         "top_p"
       ],
       "architecture": {
