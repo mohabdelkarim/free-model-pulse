@@ -1,8 +1,45 @@
 {
-  "catalog_id": "98b826e8d2f1",
-  "timestamp": "2026-09-15T15:59:14.808826+00:00",
-  "total_models": 20,
+  "catalog_id": "05299d73795e",
+  "timestamp": "2026-09-16T15:52:09.628135+00:00",
+  "total_models": 21,
   "models": [
+    {
+      "model_id": "stealth/union-alpha",
+      "display_name": "Union Alpha",
+      "canonical_family": "stealth",
+      "context_length": 262144,
+      "created": 1789569723,
+      "description": "Union Alpha is a multimodal model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad range of general-purpose tasks. Union Alpha is a stealth model....",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "max_tokens",
+        "response_format",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "inclusionai/ling-3.0-flash-vl:free",
       "display_name": "inclusionAI: Ling 3.0 Flash VL (free)",
