@@ -1,45 +1,8 @@
 {
-  "catalog_id": "05299d73795e",
-  "timestamp": "2026-09-16T15:52:09.628135+00:00",
-  "total_models": 21,
+  "catalog_id": "27148d108ae5",
+  "timestamp": "2026-09-18T02:04:22.630869+00:00",
+  "total_models": 22,
   "models": [
-    {
-      "model_id": "stealth/union-alpha",
-      "display_name": "Union Alpha",
-      "canonical_family": "stealth",
-      "context_length": 262144,
-      "created": 1789569723,
-      "description": "Union Alpha is a multimodal model built for research, coding, and agentic workflows, while delivering frontier-level performance across a broad range of general-purpose tasks. Union Alpha is a stealth model....",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 131072,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "max_tokens",
-        "response_format",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
     {
       "model_id": "inclusionai/ling-3.0-flash-vl:free",
       "display_name": "inclusionAI: Ling 3.0 Flash VL (free)",
@@ -266,6 +229,51 @@
       }
     },
     {
+      "model_id": "qwen/qwen3.8-27b:free",
+      "display_name": "Qwen: Qwen3.8 27B (free)",
+      "canonical_family": "qwen",
+      "context_length": 262144,
+      "created": 1786722910,
+      "description": "Qwen3.8 27B is an open-weight dense vision-language model from Qwen. It is suited for coding, professional workflows, research, multimodal interaction, and long-running agent tasks, with flexible thinking that can be...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 235929,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Qwen",
+        "instruct_type": null
+      }
+    },
+    {
       "model_id": "dots-studio/dots-3-note-preview:free",
       "display_name": "Dots Studio: Dots3-Note Preview (free)",
       "canonical_family": "dots-studio",
@@ -388,6 +396,54 @@
           "text"
         ],
         "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "deepseek/deepseek-v4-flash-0731:free",
+      "display_name": "DeepSeek: DeepSeek V4 Flash 0731 (free)",
+      "canonical_family": "deepseek",
+      "context_length": 1048576,
+      "created": 1785478908,
+      "description": "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total. This re-post-trained revision is suited for coding, reasoning, and agent workflows....",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 393216,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "DeepSeek",
         "instruct_type": null
       }
     },
