@@ -1,39 +1,33 @@
 {
-  "catalog_id": "38201308b82c",
-  "timestamp": "2026-09-21T02:14:36.192476+00:00",
+  "catalog_id": "91a1c9eb4ce9",
+  "timestamp": "2026-09-24T02:06:44.475025+00:00",
   "total_models": 21,
   "models": [
     {
-      "model_id": "inclusionai/ling-3.0-flash-vl:free",
-      "display_name": "inclusionAI: Ling 3.0 Flash VL (free)",
-      "canonical_family": "inclusionai",
-      "context_length": 262144,
-      "created": 1789056114,
-      "description": "Ling 3.0 Flash VL builds on Ling 3.0 Flash (124B total / 5.5B active MoE from InclusionAI), further strengthening its language capabilities while adding native visual perception and advanced visual...",
+      "model_id": "stealth/space-bunny-alpha",
+      "display_name": "Space Bunny Alpha",
+      "canonical_family": "stealth",
+      "context_length": 1000000,
+      "created": 1790174884,
+      "description": "Space Bunny Alpha is an anonymous large model with blazing-fast inference, strong coding capabilities and native multimodal input support. It delivers adjustable reasoning effort, and a 1M-token context window. Space...",
       "pricing": {
         "prompt": "0",
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
+        "context_length": 1000000,
+        "max_completion_tokens": 524288,
         "is_moderated": false
       },
       "supported_parameters": [
-        "frequency_penalty",
         "include_reasoning",
-        "logprobs",
         "max_tokens",
-        "presence_penalty",
         "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
+        "reasoning_effort",
+        "response_format",
         "temperature",
         "tool_choice",
         "tools",
-        "top_k",
-        "top_logprobs",
         "top_p"
       ],
       "architecture": {
@@ -347,7 +341,8 @@
         "tool_choice",
         "tools",
         "top_k",
-        "top_logprobs"
+        "top_logprobs",
+        "top_p"
       ],
       "architecture": {
         "modality": "text->text",
