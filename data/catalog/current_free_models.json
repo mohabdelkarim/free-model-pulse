@@ -1,7 +1,7 @@
 {
-  "catalog_id": "91a1c9eb4ce9",
-  "timestamp": "2026-09-24T02:06:44.475025+00:00",
-  "total_models": 21,
+  "catalog_id": "35d7b7b7506e",
+  "timestamp": "2026-09-25T16:14:36.755622+00:00",
+  "total_models": 19,
   "models": [
     {
       "model_id": "stealth/space-bunny-alpha",
@@ -41,94 +41,6 @@
           "text"
         ],
         "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nex-agi/nex-n2.5-mini:free",
-      "display_name": "Nex AGI: Nex-N2.5-Mini (free)",
-      "canonical_family": "nex-agi",
-      "context_length": 262144,
-      "created": 1788890061,
-      "description": "Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes. Its core strength is agentic coding within a visual feedback loop: it can explore codebases, implement multi-file...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 235929,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "response_format",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Qwen3",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nex-agi/nex-n2.5-pro:free",
-      "display_name": "Nex AGI: Nex-N2.5-Pro (free)",
-      "canonical_family": "nex-agi",
-      "context_length": 262144,
-      "created": 1788890050,
-      "description": "Nex-N2.5 is an agentic model built to turn goals into working, verified outcomes. Its core strength is agentic coding within a visual feedback loop: it can explore codebases, implement multi-file...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 235929,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "response_format",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Qwen3",
         "instruct_type": null
       }
     },
@@ -598,7 +510,7 @@
       "model_id": "z-ai/glm-5.2:free",
       "display_name": "Z.ai: GLM 5.2 (free)",
       "canonical_family": "z-ai",
-      "context_length": 32768,
+      "context_length": 131072,
       "created": 1781631930,
       "description": "GLM 5.2 is a large-scale reasoning model from Z.ai. It supports text input and output with a 1M-token context window, and is suited for long-horizon agent workflows, project-level software engineering,...",
       "pricing": {
@@ -606,8 +518,8 @@
         "completion": "0"
       },
       "top_provider": {
-        "context_length": 32768,
-        "max_completion_tokens": 29491,
+        "context_length": 131072,
+        "max_completion_tokens": 117964,
         "is_moderated": false
       },
       "supported_parameters": [
