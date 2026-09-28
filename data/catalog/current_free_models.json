@@ -1,8 +1,41 @@
 {
-  "catalog_id": "35d7b7b7506e",
-  "timestamp": "2026-09-25T16:14:36.755622+00:00",
+  "catalog_id": "e86602695135",
+  "timestamp": "2026-09-28T02:28:02.478800+00:00",
   "total_models": 19,
   "models": [
+    {
+      "model_id": "typesafe/jev-router",
+      "display_name": "TypeSafe: Jev Router",
+      "canonical_family": "typesafe",
+      "context_length": 1000000,
+      "created": 1790363560,
+      "description": "Jev Router picks the best model and reasoning effort for each request, balancing quality, speed, and cost. It runs on [Jev](https://openrouter.ai/~typesafe/jev-latest), TypeSafe's first System One model, and adapts as your...",
+      "pricing": {
+        "prompt": "-1",
+        "completion": "-1"
+      },
+      "top_provider": {
+        "context_length": null,
+        "max_completion_tokens": null,
+        "is_moderated": false
+      },
+      "supported_parameters": [],
+      "architecture": {
+        "modality": "text+image+file+audio+video->text",
+        "input_modalities": [
+          "audio",
+          "file",
+          "image",
+          "text",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Router",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "stealth/space-bunny-alpha",
       "display_name": "Space Bunny Alpha",
@@ -503,49 +536,6 @@
           "text"
         ],
         "tokenizer": "Cohere",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "z-ai/glm-5.2:free",
-      "display_name": "Z.ai: GLM 5.2 (free)",
-      "canonical_family": "z-ai",
-      "context_length": 131072,
-      "created": 1781631930,
-      "description": "GLM 5.2 is a large-scale reasoning model from Z.ai. It supports text input and output with a 1M-token context window, and is suited for long-horizon agent workflows, project-level software engineering,...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 131072,
-        "max_completion_tokens": 117964,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
         "instruct_type": null
       }
     },
