@@ -1,8 +1,53 @@
 {
-  "catalog_id": "b67d6d30ea07",
-  "timestamp": "2026-09-28T19:02:16.276326+00:00",
-  "total_models": 18,
+  "catalog_id": "490ea04d14da",
+  "timestamp": "2026-10-01T17:48:04.865036+00:00",
+  "total_models": 19,
   "models": [
+    {
+      "model_id": "apodex/apodex-1.1-mini:free",
+      "display_name": "Apodex: Apodex 1.1 Mini (free)",
+      "canonical_family": "apodex",
+      "context_length": 262144,
+      "created": 1790875335,
+      "description": "Apodex 1.1 Mini is a reasoning-first model from Apodex, built for complex, long-horizon research and forecasting tasks. It works directly with files, data, code, and tools to produce verifiable results,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 235929,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "typesafe/jev-router",
       "display_name": "TypeSafe: Jev Router",
@@ -19,7 +64,32 @@
         "max_completion_tokens": null,
         "is_moderated": false
       },
-      "supported_parameters": [],
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_completion_tokens",
+        "max_tokens",
+        "min_p",
+        "parallel_tool_calls",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_a",
+        "top_k",
+        "top_logprobs",
+        "top_p",
+        "verbosity"
+      ],
       "architecture": {
         "modality": "text+image+file+audio+video->text",
         "input_modalities": [
