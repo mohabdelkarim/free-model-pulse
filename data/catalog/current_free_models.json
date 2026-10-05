@@ -1,7 +1,7 @@
 {
-  "catalog_id": "9a2899bfac47",
-  "timestamp": "2026-10-02T17:09:47.672618+00:00",
-  "total_models": 20,
+  "catalog_id": "7427b325f9e0",
+  "timestamp": "2026-10-05T02:55:17.801286+00:00",
+  "total_models": 21,
   "models": [
     {
       "model_id": "inclusionai/ling-3.1-flash",
@@ -189,6 +189,35 @@
           "text"
         ],
         "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "nvidia/switchyard",
+      "display_name": "NVIDIA: Switchyard",
+      "canonical_family": "nvidia",
+      "context_length": 1000000,
+      "created": 1790025947,
+      "description": "Switchyard is an open-source model router that switches between multiple models to optimize the cost of requests. By default it will use OpenRouter market data to select the most popular...",
+      "pricing": {
+        "prompt": "-1",
+        "completion": "-1"
+      },
+      "top_provider": {
+        "context_length": null,
+        "max_completion_tokens": null,
+        "is_moderated": false
+      },
+      "supported_parameters": [],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Router",
         "instruct_type": null
       }
     },
