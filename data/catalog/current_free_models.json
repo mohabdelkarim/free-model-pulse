@@ -1,7 +1,7 @@
 {
-  "catalog_id": "32823e8fe70e",
-  "timestamp": "2026-10-06T03:44:54.609702+00:00",
-  "total_models": 19,
+  "catalog_id": "287e333d9c04",
+  "timestamp": "2026-10-08T18:14:51.763807+00:00",
+  "total_models": 18,
   "models": [
     {
       "model_id": "inclusionai/ling-3.1-flash",
@@ -177,51 +177,6 @@
           "text"
         ],
         "tokenizer": "Router",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "inclusionai/ling-3.0-flash-sante:free",
-      "display_name": "inclusionAI: Ling 3.0 Flash Sante (free)",
-      "canonical_family": "inclusionai",
-      "context_length": 262144,
-      "created": 1788545946,
-      "description": "Ling 3.0 Flash Sante is a health and medicine-focused mixture-of-experts model from InclusionAI, built on Ling 3.0 Flash with 5.1B active parameters out of 124B total. It is designed for...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
         "instruct_type": null
       }
     },
