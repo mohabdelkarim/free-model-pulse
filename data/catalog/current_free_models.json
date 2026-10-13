@@ -1,53 +1,8 @@
 {
-  "catalog_id": "287e333d9c04",
-  "timestamp": "2026-10-08T18:14:51.763807+00:00",
-  "total_models": 18,
+  "catalog_id": "56b2cc077185",
+  "timestamp": "2026-10-13T18:42:56.888512+00:00",
+  "total_models": 17,
   "models": [
-    {
-      "model_id": "inclusionai/ling-3.1-flash",
-      "display_name": "inclusionAI: Ling 3.1 Flash",
-      "canonical_family": "inclusionai",
-      "context_length": 262144,
-      "created": 1790950024,
-      "description": "Ling 3.1 Flash is a hybrid reasoning mixture-of-experts model from inclusionAI, with 25B active parameters out of 560B total.",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
     {
       "model_id": "apodex/apodex-1.1-mini:free",
       "display_name": "Apodex: Apodex 1.1 Mini (free)",
