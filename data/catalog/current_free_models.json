@@ -1,8 +1,50 @@
 {
-  "catalog_id": "4fc254bd69de",
-  "timestamp": "2026-10-14T02:36:07.418984+00:00",
-  "total_models": 16,
+  "catalog_id": "a107950f8e1c",
+  "timestamp": "2026-10-15T16:03:20.490020+00:00",
+  "total_models": 17,
   "models": [
+    {
+      "model_id": "nvidia/nemotron-3.5-super-vl:free",
+      "display_name": "NVIDIA: Nemotron 3.5 Super VL (free)",
+      "canonical_family": "nvidia",
+      "context_length": 1000000,
+      "created": 1792076662,
+      "description": "NVIDIA Nemotron 3.5 Super VL is an open multimodal mixture-of-experts model from NVIDIA, with 12B active parameters out of 120B total. It takes text, images, documents, GUI screenshots, and video...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "seed",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "typesafe/jev-router",
       "display_name": "TypeSafe: Jev Router",
