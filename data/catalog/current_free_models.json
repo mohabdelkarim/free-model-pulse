@@ -1,8 +1,54 @@
 {
-  "catalog_id": "a107950f8e1c",
-  "timestamp": "2026-10-15T16:03:20.490020+00:00",
-  "total_models": 17,
+  "catalog_id": "c27da2886a49",
+  "timestamp": "2026-10-19T02:17:53.596655+00:00",
+  "total_models": 18,
   "models": [
+    {
+      "model_id": "xingchen-agi/xing4.0-29b-a4b:free",
+      "display_name": "XingChen: Xing4.0 29B A4B (free)",
+      "canonical_family": "xingchen-agi",
+      "context_length": 262144,
+      "created": 1792177496,
+      "description": "Xing4.0-29B-A4B is an open-weight mixture-of-experts language model from China Telecom's AI team (TeleAI) and the successor to the TeleChat series. It has 29B total parameters with 4B active per token...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 235929,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "nvidia/nemotron-3.5-super-vl:free",
       "display_name": "NVIDIA: Nemotron 3.5 Super VL (free)",
