@@ -1,8 +1,49 @@
 {
-  "catalog_id": "c27da2886a49",
-  "timestamp": "2026-10-19T02:17:53.596655+00:00",
-  "total_models": 18,
+  "catalog_id": "c2e919ad3c96",
+  "timestamp": "2026-10-19T18:03:44.712167+00:00",
+  "total_models": 19,
   "models": [
+    {
+      "model_id": "minimax/minimax-m3.1-flash:free",
+      "display_name": "MiniMax: MiniMax M3.1 Flash (free)",
+      "canonical_family": "minimax",
+      "context_length": 1000000,
+      "created": 1792379569,
+      "description": "MiniMax-M3.1-Flash is a multimodal model from MiniMax. Compared with M3, it delivers significant improvements across multiple benchmarks, particularly in complex agentic tasks, coding, and cybersecurity. It is built for complex,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1000000,
+        "max_completion_tokens": 524288,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "xingchen-agi/xing4.0-29b-a4b:free",
       "display_name": "XingChen: Xing4.0 29B A4B (free)",
