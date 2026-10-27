@@ -1,7 +1,7 @@
 {
-  "catalog_id": "f688acb7c5a3",
-  "timestamp": "2026-10-22T16:23:30.127805+00:00",
-  "total_models": 19,
+  "catalog_id": "7cd1ffb0a74c",
+  "timestamp": "2026-10-27T17:08:14.493249+00:00",
+  "total_models": 18,
   "models": [
     {
       "model_id": "recursive/flint-v1.0:free",
@@ -145,7 +145,7 @@
       },
       "top_provider": {
         "context_length": null,
-        "max_completion_tokens": null,
+        "max_completion_tokens": 65536,
         "is_moderated": false
       },
       "supported_parameters": [
@@ -196,7 +196,7 @@
       "canonical_family": "nvidia",
       "context_length": 1000000,
       "created": 1790025947,
-      "description": "Switchyard is an open-source model router that switches between multiple models to optimize the cost of requests. By default it will use OpenRouter market data to select the most popular...",
+      "description": "Switchyard is an open-source model routing system that switches between multiple models to optimize the cost of requests. By default it will use OpenRouter market data to select the most...",
       "pricing": {
         "prompt": "-1",
         "completion": "-1"
@@ -741,47 +741,6 @@
           "text"
         ],
         "tokenizer": "Gemma",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/nemotron-3-super-120b-a12b:free",
-      "display_name": "NVIDIA: Nemotron 3 Super (free)",
-      "canonical_family": "nvidia",
-      "context_length": 262144,
-      "created": 1773245239,
-      "description": "NVIDIA Nemotron 3 Super is a 120B-parameter open hybrid MoE model, activating just 12B parameters for maximum compute efficiency and accuracy in complex multi-agent applications. Built on a hybrid Mamba-Transformer...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 235929,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "response_format",
-        "seed",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
         "instruct_type": null
       }
     }
