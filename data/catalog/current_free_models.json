@@ -1,7 +1,7 @@
 {
-  "catalog_id": "7cd1ffb0a74c",
-  "timestamp": "2026-10-27T17:08:14.493249+00:00",
-  "total_models": 18,
+  "catalog_id": "2ef6bb67ff9a",
+  "timestamp": "2026-11-02T03:16:11.638613+00:00",
+  "total_models": 16,
   "models": [
     {
       "model_id": "recursive/flint-v1.0:free",
@@ -129,93 +129,6 @@
           "text"
         ],
         "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "typesafe/jev-router",
-      "display_name": "TypeSafe: Jev Router",
-      "canonical_family": "typesafe",
-      "context_length": 1000000,
-      "created": 1790363560,
-      "description": "Jev Router picks the best model and reasoning effort for each request, balancing quality, speed, and cost. It runs on [Jev](https://openrouter.ai/~typesafe/jev-latest), TypeSafe's first System One model, and adapts as your...",
-      "pricing": {
-        "prompt": "-1",
-        "completion": "-1"
-      },
-      "top_provider": {
-        "context_length": null,
-        "max_completion_tokens": 65536,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logit_bias",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "min_p",
-        "parallel_tool_calls",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_a",
-        "top_k",
-        "top_logprobs",
-        "top_p",
-        "verbosity"
-      ],
-      "architecture": {
-        "modality": "text+image+file+audio+video->text",
-        "input_modalities": [
-          "audio",
-          "file",
-          "image",
-          "text",
-          "video"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Router",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/switchyard",
-      "display_name": "NVIDIA: Switchyard",
-      "canonical_family": "nvidia",
-      "context_length": 1000000,
-      "created": 1790025947,
-      "description": "Switchyard is an open-source model routing system that switches between multiple models to optimize the cost of requests. By default it will use OpenRouter market data to select the most...",
-      "pricing": {
-        "prompt": "-1",
-        "completion": "-1"
-      },
-      "top_provider": {
-        "context_length": null,
-        "max_completion_tokens": null,
-        "is_moderated": false
-      },
-      "supported_parameters": [],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Router",
         "instruct_type": null
       }
     },
@@ -389,42 +302,6 @@
       }
     },
     {
-      "model_id": "poolside/laguna-s-2.1:free",
-      "display_name": "Poolside: Laguna S 2.1 (free)",
-      "canonical_family": "poolside",
-      "context_length": 262144,
-      "created": 1784652683,
-      "description": "Laguna S 2.1 is the latest coding agent model from [Poolside](<https://poolside.ai/>). Laguna S 2.1 is a 118B total parameter model with 8B active parameters, scoring 70.2% on Terminal-Bench 2.1 and...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "temperature",
-        "tool_choice",
-        "tools"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
       "model_id": "thinkingmachines/inkling:free",
       "display_name": "Thinking Machines: Inkling (free)",
       "canonical_family": "thinkingmachines",
@@ -459,42 +336,6 @@
           "text",
           "image",
           "audio"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "poolside/laguna-xs-2.1:free",
-      "display_name": "Poolside: Laguna XS 2.1 (free)",
-      "canonical_family": "poolside",
-      "context_length": 262144,
-      "created": 1783002429,
-      "description": "Laguna XS 2.1 is the latest coding agent model in the 33B-A3B category from [Poolside](https://poolside.ai/) and a step forward from their Laguna XS.2 model (released in April 2026). It combines...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 32768,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "temperature",
-        "tool_choice",
-        "tools"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
         ],
         "output_modalities": [
           "text"
@@ -741,6 +582,93 @@
           "text"
         ],
         "tokenizer": "Gemma",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "typesafe/jev-router",
+      "display_name": "TypeSafe: Jev Router",
+      "canonical_family": "typesafe",
+      "context_length": 1000000,
+      "created": 1790363560,
+      "description": "Jev Router picks the best model and reasoning effort for each request, balancing quality, speed, and cost. It runs on [Jev](https://openrouter.ai/~typesafe/jev-latest), TypeSafe's first System One model, and adapts as your...",
+      "pricing": {
+        "prompt": "-1",
+        "completion": "-1"
+      },
+      "top_provider": {
+        "context_length": null,
+        "max_completion_tokens": 65536,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_completion_tokens",
+        "max_tokens",
+        "min_p",
+        "parallel_tool_calls",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_a",
+        "top_k",
+        "top_logprobs",
+        "top_p",
+        "verbosity"
+      ],
+      "architecture": {
+        "modality": "text+image+file+audio+video->text",
+        "input_modalities": [
+          "audio",
+          "file",
+          "image",
+          "text",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Router",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "nvidia/switchyard",
+      "display_name": "NVIDIA: Switchyard",
+      "canonical_family": "nvidia",
+      "context_length": 1000000,
+      "created": 1790025947,
+      "description": "Switchyard is an open-source model routing system that switches between multiple models to optimize the cost of requests. By default it will use OpenRouter market data to select the most...",
+      "pricing": {
+        "prompt": "-1",
+        "completion": "-1"
+      },
+      "top_provider": {
+        "context_length": null,
+        "max_completion_tokens": null,
+        "is_moderated": false
+      },
+      "supported_parameters": [],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Router",
         "instruct_type": null
       }
     }
