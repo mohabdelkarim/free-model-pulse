@@ -1,8 +1,52 @@
 {
-  "catalog_id": "2ef6bb67ff9a",
-  "timestamp": "2026-11-02T03:16:11.638613+00:00",
-  "total_models": 16,
+  "catalog_id": "44232be04a3d",
+  "timestamp": "2026-11-04T03:49:07.295433+00:00",
+  "total_models": 17,
   "models": [
+    {
+      "model_id": "stealth/crouton-alpha",
+      "display_name": "Crouton Alpha",
+      "canonical_family": "stealth",
+      "context_length": 1048576,
+      "created": 1793669930,
+      "description": "Crouton Alpha is a lightweight model built for scalable coding, agentic, and multimodal workflows. It's ideal for executing agentic sub-tasks, tool use, and document analysis in high-volume, repeated work. Developers...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 943718,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image+file+audio+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video",
+          "file",
+          "audio"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "recursive/flint-v1.0:free",
       "display_name": "Recursive: Flint (free)",
@@ -206,7 +250,8 @@
         "tool_choice",
         "tools",
         "top_k",
-        "top_logprobs"
+        "top_logprobs",
+        "top_p"
       ],
       "architecture": {
         "modality": "text->text",
