@@ -1,7 +1,7 @@
 {
-  "catalog_id": "44232be04a3d",
-  "timestamp": "2026-11-04T03:49:07.295433+00:00",
-  "total_models": 17,
+  "catalog_id": "b7a90b19af79",
+  "timestamp": "2026-11-04T19:10:27.670122+00:00",
+  "total_models": 15,
   "models": [
     {
       "model_id": "stealth/crouton-alpha",
@@ -295,92 +295,6 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "thinkingmachines/inkling-small:free",
-      "display_name": "Thinking Machines: Inkling Small (free)",
-      "canonical_family": "thinkingmachines",
-      "context_length": 1048576,
-      "created": 1785443117,
-      "description": "Inkling Small is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 12B active parameters out of 276B total. It is positioned as the smaller, more efficient member of...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 262144,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "seed",
-        "stop",
-        "temperature",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image+audio->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "audio"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "thinkingmachines/inkling:free",
-      "display_name": "Thinking Machines: Inkling (free)",
-      "canonical_family": "thinkingmachines",
-      "context_length": 1048576,
-      "created": 1784325956,
-      "description": "Inkling is an open-weight multimodal mixture-of-experts model from Thinking Machines Lab, with 41B active parameters out of 975B total. It is designed for general-purpose reasoning, coding, agentic and tool-use systems,...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 262144,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "reasoning_effort",
-        "seed",
-        "stop",
-        "temperature",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image+audio->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "audio"
         ],
         "output_modalities": [
           "text"
