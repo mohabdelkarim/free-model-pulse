@@ -1,7 +1,7 @@
 {
-  "catalog_id": "b7a90b19af79",
-  "timestamp": "2026-11-04T19:10:27.670122+00:00",
-  "total_models": 15,
+  "catalog_id": "4cd71cbf8d1b",
+  "timestamp": "2026-11-06T18:43:32.724200+00:00",
+  "total_models": 14,
   "models": [
     {
       "model_id": "stealth/crouton-alpha",
@@ -342,43 +342,6 @@
           "text"
         ],
         "tokenizer": "Cohere",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "nvidia/nemotron-3.5-content-safety:free",
-      "display_name": "NVIDIA: Nemotron 3.5 Content Safety (free)",
-      "canonical_family": "nvidia",
-      "context_length": 128000,
-      "created": 1780581864,
-      "description": "NVIDIA Nemotron 3.5 Content Safety is a compact 4B-parameter multimodal guardrail model from NVIDIA, fine-tuned from Google Gemma-3-4B. It moderates both inputs to and responses from LLMs and VLMs, accepting...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 128000,
-        "max_completion_tokens": 8192,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "seed",
-        "temperature",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
         "instruct_type": null
       }
     },
