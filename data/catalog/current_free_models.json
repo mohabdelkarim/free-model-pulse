@@ -1,8 +1,57 @@
 {
-  "catalog_id": "4cd71cbf8d1b",
-  "timestamp": "2026-11-06T18:43:32.724200+00:00",
-  "total_models": 14,
+  "catalog_id": "8d57205cbdc0",
+  "timestamp": "2026-11-09T03:34:25.120631+00:00",
+  "total_models": 15,
   "models": [
+    {
+      "model_id": "liquid/lfm-3-1.7b:free",
+      "display_name": "LiquidAI: LFM3-1.7B (free)",
+      "canonical_family": "liquid",
+      "context_length": 262144,
+      "created": 1794009477,
+      "description": "A compact 1.7B-parameter text model with a 256K-token context, post-trained for agents, tool calling, and structured outputs. It reasons before it answers. Prompts and outputs may be retained and used...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 8192,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_completion_tokens",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "stealth/crouton-alpha",
       "display_name": "Crouton Alpha",
