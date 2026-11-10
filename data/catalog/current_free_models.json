@@ -1,8 +1,48 @@
 {
-  "catalog_id": "8d57205cbdc0",
-  "timestamp": "2026-11-09T03:34:25.120631+00:00",
+  "catalog_id": "72a934b306c7",
+  "timestamp": "2026-11-10T05:07:14.694430+00:00",
   "total_models": 15,
   "models": [
+    {
+      "model_id": "thinkingmachines/inkling-2-small:free",
+      "display_name": "Thinking Machines: Inkling 2 Small (free)",
+      "canonical_family": "thinkingmachines",
+      "context_length": 1048576,
+      "created": 1794261847,
+      "description": "Inkling 2 Small is a multimodal mixture-of-experts reasoning model from Thinking Machines Lab, with 17B active parameters out of 594B total. It is the first model in the second Inkling...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "seed",
+        "stop",
+        "temperature",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "liquid/lfm-3-1.7b:free",
       "display_name": "LiquidAI: LFM3-1.7B (free)",
@@ -44,50 +84,6 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "stealth/crouton-alpha",
-      "display_name": "Crouton Alpha",
-      "canonical_family": "stealth",
-      "context_length": 1048576,
-      "created": 1793669930,
-      "description": "Crouton Alpha is a lightweight model built for scalable coding, agentic, and multimodal workflows. It's ideal for executing agentic sub-tasks, tool use, and document analysis in high-volume, repeated work. Developers...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 943718,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "response_format",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image+file+audio+video->text",
-        "input_modalities": [
-          "text",
-          "image",
-          "video",
-          "file",
-          "audio"
         ],
         "output_modalities": [
           "text"
@@ -569,7 +565,7 @@
       },
       "top_provider": {
         "context_length": null,
-        "max_completion_tokens": 65536,
+        "max_completion_tokens": 64000,
         "is_moderated": false
       },
       "supported_parameters": [
