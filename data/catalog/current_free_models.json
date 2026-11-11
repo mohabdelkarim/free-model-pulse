@@ -1,8 +1,48 @@
 {
-  "catalog_id": "5d3118f490c9",
-  "timestamp": "2026-11-11T03:40:34.580011+00:00",
-  "total_models": 14,
+  "catalog_id": "940dee62a79e",
+  "timestamp": "2026-11-11T19:04:49.168494+00:00",
+  "total_models": 15,
   "models": [
+    {
+      "model_id": "baidu/ernie-5.5-flash-preview:free",
+      "display_name": "Baidu: ERNIE-5.5-Flash-Preview (free)",
+      "canonical_family": "baidu",
+      "context_length": 1024000,
+      "created": 1794333533,
+      "description": "ERNIE 5.5 Flash Preview is the latest foundation model in the ERNIE family, with comprehensive improvements in coding, agentic capabilities, knowledge work, and deep research. It has 280 billion total...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1024000,
+        "max_completion_tokens": 921600,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "reasoning_effort",
+        "response_format",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
     {
       "model_id": "thinkingmachines/inkling-2-small:free",
       "display_name": "Thinking Machines: Inkling 2 Small (free)",
