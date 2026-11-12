@@ -1,7 +1,7 @@
 {
-  "catalog_id": "60e296992ece",
-  "timestamp": "2026-11-12T09:56:25.932886+00:00",
-  "total_models": 13,
+  "catalog_id": "7be25c444ed2",
+  "timestamp": "2026-11-12T19:23:25.856259+00:00",
+  "total_models": 14,
   "models": [
     {
       "model_id": "baidu/ernie-5.5-flash-preview:free",
@@ -207,6 +207,50 @@
           "text",
           "image",
           "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "apodex/apodex-1.1-mini:free",
+      "display_name": "Apodex: Apodex 1.1 Mini (free)",
+      "canonical_family": "apodex",
+      "context_length": 262144,
+      "created": 1790875335,
+      "description": "Apodex 1.1 Mini is a reasoning-first model from Apodex, built for complex, long-horizon research and forecasting tasks. It works directly with files, data, code, and tools to produce verifiable results,...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 262144,
+        "max_completion_tokens": 235929,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "max_tokens",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
         ],
         "output_modalities": [
           "text"
