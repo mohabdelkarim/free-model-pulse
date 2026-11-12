@@ -15,16 +15,20 @@ from typing import Optional
 import requests
 
 from common import (
+    BENCHMARK_CSV_COLUMNS,
     BENCHMARK_RUNS_FILE,
     CURRENT_MODELS_FILE,
+    HISTORY_FILE,
     append_csv_row,
     get_logger,
     get_run_id,
     load_json,
     load_prompts,
     now_iso,
+    read_jsonl,
     safe_float,
     safe_int,
+    sanitize_error_message,
     setup_logging,
 )
 
@@ -87,6 +91,23 @@ def load_current_catalog() -> Optional[dict]:
     return load_json(CURRENT_MODELS_FILE)
 
 
+def classify_http_failure(status_code: int, body: str) -> str:
+    """Map HTTP failures to status labels. quota/auth are infra, not model quality."""
+    body_l = (body or "").lower()
+    if status_code in (401, 403):
+        if any(token in body_l for token in (
+            "key limit exceeded",
+            "limit exceeded",
+            "insufficient credits",
+            "quota",
+            "credit",
+            "usage limit",
+        )):
+            return "quota"
+        return "auth"
+    return "error"
+
+
 def benchmark_single_model(
     model_id: str,
     prompt_text: str,
@@ -101,19 +122,23 @@ def benchmark_single_model(
         "max_tokens": 512,
     }
 
-    start_time = time.time()
+    budget_start = time.time()
     last_error = None
+    last_attempt_latency = 0.0
 
     for attempt in range(MAX_RETRIES):
-        elapsed = time.time() - start_time
-        if elapsed >= RETRY_BUDGET_SEC:
-            LOG.warning("Retry budget exhausted for %s after %.1fs", model_id, elapsed)
+        wall_elapsed = time.time() - budget_start
+        if wall_elapsed >= RETRY_BUDGET_SEC:
+            LOG.warning("Retry budget exhausted for %s after %.1fs", model_id, wall_elapsed)
             return {
                 "status": "error",
-                "error_message": f"Retry budget exhausted after {elapsed:.1f}s",
-                "latency_sec": round(elapsed, 3),
+                "error_message": sanitize_error_message(
+                    f"Retry budget exhausted after {wall_elapsed:.1f}s"
+                ),
+                "latency_sec": round(last_attempt_latency or wall_elapsed, 3),
             }
 
+        attempt_start = time.time()
         try:
             response = requests.post(
                 OPENROUTER_API_URL,
@@ -122,15 +147,22 @@ def benchmark_single_model(
                 timeout=timeout
             )
 
-            elapsed_time = time.time() - start_time
+            # Latency is the final attempt only (retries/backoff excluded).
+            elapsed_time = time.time() - attempt_start
+            last_attempt_latency = elapsed_time
+            body_preview = response.text[:300]
 
             # Non-retryable errors (403, 401, 404, etc.) — skip immediately, no retry
             if response.status_code in NON_RETRYABLE_STATUSES:
-                LOG.warning("[%s] Non-retryable HTTP %d — skipping. Body: %s",
-                            model_id, response.status_code, response.text[:200])
+                status = classify_http_failure(response.status_code, body_preview)
+                LOG.warning("[%s] Non-retryable HTTP %d (%s) — skipping. Body: %s",
+                            model_id, response.status_code, status,
+                            sanitize_error_message(body_preview, max_len=120))
                 return {
-                    "status": "error",
-                    "error_message": f"HTTP {response.status_code} (non-retryable): {response.text[:200]}",
+                    "status": status,
+                    "error_message": sanitize_error_message(
+                        f"HTTP {response.status_code} (non-retryable): {body_preview}"
+                    ),
                     "latency_sec": round(elapsed_time, 3),
                 }
 
@@ -163,9 +195,12 @@ def benchmark_single_model(
                 }
 
             if response.status_code != 200:
+                status = classify_http_failure(response.status_code, body_preview)
                 return {
-                    "status": "error",
-                    "error_message": f"HTTP {response.status_code}: {response.text[:200]}",
+                    "status": status,
+                    "error_message": sanitize_error_message(
+                        f"HTTP {response.status_code}: {body_preview}"
+                    ),
                     "latency_sec": round(elapsed_time, 3),
                 }
 
@@ -203,7 +238,8 @@ def benchmark_single_model(
             }
 
         except requests.exceptions.Timeout:
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - attempt_start
+            last_attempt_latency = elapsed_time
             LOG.warning("[%s] Timeout after %.1fs. Attempt %d/%d",
                         model_id, elapsed_time, attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
@@ -217,7 +253,8 @@ def benchmark_single_model(
             }
 
         except requests.exceptions.ConnectionError as e:
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - attempt_start
+            last_attempt_latency = elapsed_time
             LOG.warning("[%s] Connection error: %s. Attempt %d/%d",
                         model_id, str(e)[:100], attempt + 1, MAX_RETRIES)
             if attempt < MAX_RETRIES - 1:
@@ -226,23 +263,24 @@ def benchmark_single_model(
                 continue
             return {
                 "status": "error",
-                "error_message": f"Connection error: {str(e)[:200]}",
+                "error_message": sanitize_error_message(f"Connection error: {str(e)}"),
                 "latency_sec": round(elapsed_time, 3),
             }
 
         except requests.exceptions.RequestException as e:
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - attempt_start
+            last_attempt_latency = elapsed_time
             LOG.error("[%s] Request failed: %s", model_id, str(e)[:200])
             return {
                 "status": "error",
-                "error_message": str(e)[:200],
+                "error_message": sanitize_error_message(str(e)),
                 "latency_sec": round(elapsed_time, 3),
             }
 
     return {
         "status": "error",
-        "error_message": last_error or "Max retries exceeded",
-        "latency_sec": time.time() - start_time,
+        "error_message": sanitize_error_message(last_error or "Max retries exceeded"),
+        "latency_sec": round(last_attempt_latency, 3),
     }
 
 
@@ -284,7 +322,6 @@ def run_benchmark(
     if not run_id:
         run_id = get_run_id()
 
-    timestamp = now_iso()
     catalog_id = None
     catalog = load_current_catalog()
     if catalog:
@@ -294,6 +331,7 @@ def run_benchmark(
     completed = 0
     successful = 0
     failed = 0
+    infra_failed = 0
     skipped = 0
 
     LOG.info("Run ID: %s", run_id)
@@ -327,8 +365,9 @@ def run_benchmark(
         # Reset ONLY on genuine success; non-429 errors (404, timeout, 5xx) don't clear
         # the counter so a single passing model can't mask an ongoing rate-limit storm.
         error_msg = result.get("error_message", "")
-        is_429 = result.get("status") in ("error", "timeout") and "429" in error_msg
-        is_success = result.get("status") == "success"
+        status = result.get("status", "error")
+        is_429 = status in ("error", "timeout") and "429" in error_msg
+        is_success = status == "success"
 
         if is_429:
             consecutive_429s += 1
@@ -354,15 +393,15 @@ def run_benchmark(
         row = {
             "run_id": run_id,
             "benchmark_reason": benchmark_reason,
-            "timestamp_utc": timestamp,
+            "timestamp_utc": now_iso(),
             "prompt_version": prompt_version,
             "model_id": model_id,
             "canonical_family": model.get("canonical_family", "unknown"),
             "display_name": model.get("display_name", model_id),
             "context_length": model.get("context_length"),
             "latency_sec": result.get("latency_sec"),
-            "status": result.get("status"),
-            "error_message": result.get("error_message", ""),
+            "status": status,
+            "error_message": sanitize_error_message(result.get("error_message", "")),
             "response_id": result.get("response_id", ""),
             "finish_reason": result.get("finish_reason", ""),
             "prompt_tokens": result.get("prompt_tokens", ""),
@@ -374,15 +413,18 @@ def run_benchmark(
             "cost": result.get("cost", ""),
         }
 
-        append_csv_row(BENCHMARK_RUNS_FILE, row)
+        append_csv_row(BENCHMARK_RUNS_FILE, row, columns=BENCHMARK_CSV_COLUMNS)
 
-        if result.get("status") == "success":
+        if status == "success":
             successful += 1
             LOG.info("[%s] SUCCESS - Latency: %.3fs, Tokens: %s, Cost: $%.6f",
                      model_id,
                      result.get("latency_sec", 0),
                      result.get("total_tokens", "N/A"),
                      result.get("cost", 0))
+        elif status in ("quota", "auth"):
+            infra_failed += 1
+            LOG.error("[%s] INFRA (%s) - %s", model_id, status, result.get("error_message", "Unknown error"))
         else:
             failed += 1
             LOG.error("[%s] FAILED - %s", model_id, result.get("error_message", "Unknown error"))
@@ -404,8 +446,10 @@ def run_benchmark(
     LOG.info("=" * 60)
     LOG.info("Benchmark complete: %s", run_id)
     LOG.info("Duration: %.1fs", total_duration)
-    LOG.info("Results: %d/%d successful, %d failed, %d skipped",
-             successful, total_tests, failed, skipped)
+    LOG.info(
+        "Results: %d/%d successful, %d failed, %d infra, %d skipped",
+        successful, total_tests, failed, infra_failed, skipped,
+    )
     LOG.info("=" * 60)
 
     return {
@@ -417,10 +461,29 @@ def run_benchmark(
         "total_tests": total_tests,
         "successful": successful,
         "failed": failed,
+        "infra_failed": infra_failed,
         "skipped": skipped,
         "duration_sec": round(total_duration, 1),
         "catalog_id": catalog_id,
     }
+
+
+def previous_catalog_model_ids() -> set[str]:
+    """Best-effort previous snapshot IDs from history (for --new-only)."""
+    records = read_jsonl(HISTORY_FILE)
+    current = load_current_catalog()
+    current_id = current.get("catalog_id") if current else None
+
+    for entry in reversed(records):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("catalog_id") == current_id:
+            continue
+        model_ids = entry.get("model_ids")
+        if isinstance(model_ids, list) and model_ids:
+            return {str(mid) for mid in model_ids if mid}
+        # Prefer explicit model_ids snapshots over reconstructing from changes.
+    return set()
 
 
 def benchmark_new_models(new_model_ids: list[str], benchmark_reason: str = "new_model_detected") -> dict:
@@ -432,7 +495,8 @@ def benchmark_new_models(new_model_ids: list[str], benchmark_reason: str = "new_
         return {"success": False, "error": "No catalog available"}
 
     all_models = catalog.get("models", [])
-    models_to_test = [m for m in all_models if m.get("model_id") in new_model_ids]
+    wanted = set(new_model_ids)
+    models_to_test = [m for m in all_models if m.get("model_id") in wanted]
 
     if not models_to_test:
         LOG.error("None of the new model IDs found in catalog")
@@ -462,13 +526,35 @@ def main():
 
     if args.new_only:
         catalog = load_current_catalog()
-        if catalog:
-            models = catalog.get("models", [])
-        result = run_benchmark(models=models, prompt_id=args.prompt,
-                               benchmark_reason="new_model_detected", run_id=args.run_id)
+        if not catalog:
+            print(json.dumps({"success": False, "error": "No catalog available"}, indent=2))
+            return
+        current_ids = {m.get("model_id") for m in catalog.get("models", []) if m.get("model_id")}
+        prev_ids = previous_catalog_model_ids()
+        new_ids = sorted(current_ids - prev_ids) if prev_ids else sorted(current_ids)
+        if not new_ids:
+            print(json.dumps({
+                "success": True,
+                "skipped": True,
+                "reason": "No new models vs previous catalog snapshot",
+                "total_tests": 0,
+            }, indent=2))
+            return
+        wanted = set(new_ids)
+        models = [m for m in catalog.get("models", []) if m.get("model_id") in wanted]
+        result = run_benchmark(
+            models=models,
+            prompt_id=args.prompt,
+            benchmark_reason="new_model_detected",
+            run_id=args.run_id,
+        )
     else:
-        result = run_benchmark(models=models, prompt_id=args.prompt,
-                               benchmark_reason=args.reason, run_id=args.run_id)
+        result = run_benchmark(
+            models=models,
+            prompt_id=args.prompt,
+            benchmark_reason=args.reason,
+            run_id=args.run_id,
+        )
 
     print(json.dumps(result, indent=2))
 

@@ -70,7 +70,7 @@ jobs:
           if [ "${{ inputs.force_catalog }}" = "true" ]; then
             python watch_models.py --force
           else
-            python watch_models.py || true
+            python watch_models.py
           fi
 
       - name: Run benchmark
@@ -85,7 +85,13 @@ jobs:
 
       - name: Generate index and publish tables
         id: analyze
-        run: python analyze.py --min-runs 1 --update-readme --write-pages
+        run: >
+          python analyze.py
+          --min-runs 1
+          --redact-raw-errors
+          --update-readme
+          --write-pages
+          --leaderboard-min-runs 1
 
       - name: Commit data README and Pages
         id: commit
@@ -140,10 +146,19 @@ jobs:
         run: |
           if [ -z "$SLACK_WEBHOOK_AI_PIPELINES" ]; then exit 0; fi
           TOP=$(python -c "
-          import csv
-          rows = list(csv.DictReader(open('data/derived/model_index.csv', encoding='utf-8')))
-          top = sorted(rows, key=lambda r: float(r.get('latency_sec_median') or 999))[:3]
-          print('\\n'.join(f\"• {r.get('display_name','?')}: {r.get('latency_sec_median','?')}s\" for r in top))
+          import csv, json
+          from pathlib import Path
+          cat = json.loads(Path('data/catalog/current_free_models.json').read_text(encoding='utf-8'))
+          live = {m['model_id'] for m in cat.get('models', [])}
+          rows = [r for r in csv.DictReader(open('data/derived/model_index.csv', encoding='utf-8')) if r.get('model_id') in live]
+          def sk(r):
+              try: sr = float(r['success_rate']) if r.get('success_rate') not in (None, '') else -1.0
+              except Exception: sr = -1.0
+              try: lat = float(r['latency_sec_median']) if r.get('latency_sec_median') not in (None, '') else 9999.0
+              except Exception: lat = 9999.0
+              return (-sr, lat)
+          top = sorted(rows, key=sk)[:3]
+          print('\\n'.join(f\"• {r.get('display_name','?')}: sr={r.get('success_rate','?')} p50={r.get('latency_sec_median','?')}s\" for r in top) or 'No live models')
           " 2>/dev/null || echo "Benchmark completed")
           python slack_notify.py --digest \
             --title "free-model-pulse" \

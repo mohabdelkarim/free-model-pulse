@@ -14,6 +14,7 @@ Tests:
 Run with: pytest tests/ -v
 """
 
+import csv
 import json
 import sys
 import tempfile
@@ -28,8 +29,10 @@ if str(ROOT_DIR) not in sys.path:
 from common import (
     append_csv_row,
     ensure_csv_header,
+    html_escape,
     safe_float,
     safe_int,
+    sanitize_error_message,
 )
 
 # ---------------------------------------------------------------------------
@@ -141,13 +144,34 @@ class TestModelFiltering(unittest.TestCase):
         self.assertFalse(is_free)
         self.assertIn("tts", reason)
 
-    def test_supported_parameters_not_checked(self):
-        """is_benchmarkable does NOT filter on supported_parameters — test reflects reality."""
-        # A model with only "prompt" in supported_parameters is still benchmarkable
-        # because the code doesn't enforce messages support.
+    def test_excludes_empty_supported_parameters(self):
+        model = self._free_model(supported_parameters=[])
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("supported_parameters", reason)
+
+    def test_excludes_non_chat_supported_parameters(self):
         model = self._free_model(supported_parameters=["prompt"])
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("chat", reason)
+
+    def test_allows_chat_supported_parameters(self):
+        model = self._free_model(supported_parameters=["max_tokens", "temperature"])
         is_free, _ = self.is_benchmarkable(model)
         self.assertTrue(is_free)
+
+    def test_excludes_router_suffix_ids(self):
+        model = self._free_model(id="typesafe/jev-router")
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("router", reason)
+
+    def test_excludes_switchyard_keyword(self):
+        model = self._free_model(id="nvidia/switchyard", supported_parameters=["max_tokens"])
+        is_free, reason = self.is_benchmarkable(model)
+        self.assertFalse(is_free)
+        self.assertIn("switchyard", reason)
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +342,33 @@ class TestAggregateCalculations(unittest.TestCase):
         self.assertEqual(result[1]["model_id"], "m3")
         self.assertEqual(result[2]["model_id"], "m1")
 
+    def test_aggregate_excludes_quota_from_success_rate(self):
+        rows = [
+            self._row("m1", "success", run_id="r1"),
+            self._row("m1", "quota", run_id="r2", ts="2024-01-02T00:00:00Z"),
+            self._row("m1", "auth", run_id="r3", ts="2024-01-03T00:00:00Z"),
+        ]
+        result = self.aggregate(rows, min_runs=1)
+        self.assertEqual(result[0]["successful_runs"], 1)
+        self.assertEqual(result[0]["infra_runs"], 2)
+        self.assertEqual(result[0]["failed_runs"], 0)
+        self.assertEqual(result[0]["success_rate"], 1.0)
+        self.assertEqual(result[0]["total_runs"], 3)
+
+    def test_aggregate_tokens_per_sec_pairs_per_row(self):
+        rows = [
+            self._row("m1", "success", latency="1.0", tokens="100", run_id="r1"),
+            # success with zero tokens must not shift pairing for the next row
+            {
+                **self._row("m1", "success", latency="2.0", tokens="0", run_id="r2", ts="2024-01-02T00:00:00Z"),
+                "total_tokens": "0",
+            },
+            self._row("m1", "success", latency="4.0", tokens="40", run_id="r3", ts="2024-01-03T00:00:00Z"),
+        ]
+        result = self.aggregate(rows, min_runs=1)
+        # Correct pairing: 100/1 and 40/4 => avg 55. Wrong zip would be 100/1 and 40/2 => 60.
+        self.assertEqual(result[0]["tokens_per_sec_avg"], 55.0)
+
 
 # ---------------------------------------------------------------------------
 # CSV operations
@@ -351,10 +402,29 @@ class TestCSVOperations(unittest.TestCase):
         result = ensure_csv_header(self.csv_path, ["col1", "col2"])
         self.assertFalse(result)
 
-    def test_ensure_csv_header_overwrites_mismatch(self):
+    def test_ensure_csv_header_refuses_mismatch_without_wiping(self):
         append_csv_row(self.csv_path, {"col1": "val1", "col2": "val2"})
-        result = ensure_csv_header(self.csv_path, ["col1", "col3"])
-        self.assertTrue(result)
+        before = self.csv_path.read_text(encoding="utf-8")
+        with self.assertRaises(ValueError):
+            ensure_csv_header(self.csv_path, ["col1", "col3"])
+        self.assertEqual(self.csv_path.read_text(encoding="utf-8"), before)
+        self.assertIn("val1", before)
+
+    def test_append_csv_row_uses_explicit_column_order(self):
+        append_csv_row(
+            self.csv_path,
+            {"b": "2", "a": "1"},
+            columns=["a", "b"],
+        )
+        append_csv_row(
+            self.csv_path,
+            {"a": "3", "b": "4"},
+            columns=["a", "b"],
+        )
+        lines = self.csv_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines[0], "a,b")
+        self.assertEqual(lines[1], "1,2")
+        self.assertEqual(lines[2], "3,4")
 
 
 # ---------------------------------------------------------------------------
@@ -399,21 +469,69 @@ class TestBenchmarkSingleModel(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertIn("429", result["error_message"])
 
-    def test_handles_403_non_retryable(self):
-        """403 must return immediately without retrying."""
+    def test_handles_403_non_retryable_as_auth(self):
+        """403 must return immediately without retrying and map to auth."""
         mock_resp = self._mock_response(403, {"error": "forbidden"})
         with patch("requests.post", return_value=mock_resp) as mock_post:
             result = self.benchmark_single_model("test/model", "prompt", "1.0")
-        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["status"], "auth")
         self.assertIn("403", result["error_message"])
         self.assertEqual(mock_post.call_count, 1)  # no retries
+
+    def test_handles_403_key_limit_as_quota(self):
+        body = {"error": {"message": "Key limit exceeded (total limit). $0.00 of $0.00"}}
+        mock_resp = self._mock_response(403, body)
+        with patch("requests.post", return_value=mock_resp):
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "quota")
 
     def test_handles_401_non_retryable(self):
         mock_resp = self._mock_response(401, {"error": "unauthorized"})
         with patch("requests.post", return_value=mock_resp) as mock_post:
             result = self.benchmark_single_model("test/model", "prompt", "1.0")
-        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["status"], "auth")
         self.assertEqual(mock_post.call_count, 1)
+
+    def test_latency_excludes_retry_backoff(self):
+        fail_resp = self._mock_response(500)
+        ok_resp = self._mock_response(200, self._success_body())
+        clock = {"t": 1000.0}
+
+        def fake_time():
+            return clock["t"]
+
+        def fake_sleep(seconds):
+            clock["t"] += float(seconds)
+
+        def fake_post(*args, **kwargs):
+            # Each HTTP call takes 0.25s of attempt time.
+            clock["t"] += 0.25
+            call_idx = fake_post.calls
+            fake_post.calls += 1
+            return fail_resp if call_idx == 0 else ok_resp
+
+        fake_post.calls = 0
+
+        with patch("requests.post", side_effect=fake_post):
+            with patch("time.sleep", side_effect=fake_sleep):
+                with patch("time.time", side_effect=fake_time):
+                    result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertEqual(result["status"], "success")
+        # Last attempt was 0.25s; if wall time with backoff were used it would be >> 1s.
+        self.assertAlmostEqual(result["latency_sec"], 0.25, places=2)
+
+    def test_error_message_redacts_key_urls(self):
+        body = (
+            'Key limit exceeded. Manage it using '
+            'https://openrouter.ai/workspaces/default/keys/'
+            '8724ace02991ecf1948d3922e0ddc50ce1da732a9956fc292d1999c179687894'
+        )
+        mock_resp = self._mock_response(403, {"error": {"message": body}})
+        mock_resp.text = body
+        with patch("requests.post", return_value=mock_resp):
+            result = self.benchmark_single_model("test/model", "prompt", "1.0")
+        self.assertNotIn("8724ace0", result["error_message"])
+        self.assertIn("[redacted-key-url]", result["error_message"])
 
     def test_handles_500_retries_then_fails(self):
         mock_resp = self._mock_response(500, {"error": "server error"})
@@ -553,6 +671,105 @@ class TestCircuitBreaker(unittest.TestCase):
             len(breaker_calls), 0,
             f"Circuit breaker must only fire on 429 errors, not generic errors; got: {breaker_calls}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Security helpers + live leaderboard
+# ---------------------------------------------------------------------------
+
+class TestSecurityHelpers(unittest.TestCase):
+    def test_sanitize_error_message_redacts_key_url_and_sk(self):
+        raw = (
+            "HTTP 403: Key limit. "
+            "https://openrouter.ai/workspaces/default/keys/"
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa "
+            "sk-or-v1-SECRETVALUE1234567890"
+        )
+        cleaned = sanitize_error_message(raw)
+        self.assertNotIn("aaaaaaaa", cleaned)
+        self.assertNotIn("sk-or-v1-SECRET", cleaned)
+        self.assertIn("[redacted-key-url]", cleaned)
+        self.assertIn("[redacted-key]", cleaned)
+
+    def test_html_escape_neutralizes_tags(self):
+        self.assertEqual(
+            html_escape('<img src=x onerror=alert(1)>'),
+            "&lt;img src=x onerror=alert(1)&gt;",
+        )
+
+
+class TestLiveLeaderboard(unittest.TestCase):
+    def test_leaderboard_entries_only_include_current_catalog(self):
+        import analyze as analyze_mod
+        from analyze import _leaderboard_entries
+
+        index_rows = [
+            {
+                "model_id": "gone/old:free",
+                "display_name": "Gone Old",
+                "success_rate": "1.0",
+                "latency_sec_median": "0.1",
+                "latency_sec_min": "0.1",
+                "latency_sec_max": "0.2",
+                "tokens_per_sec_avg": "100",
+                "successful_runs": "10",
+                "total_runs": "10",
+            },
+            {
+                "model_id": "live/now:free",
+                "display_name": "Live Now",
+                "success_rate": "0.9",
+                "latency_sec_median": "1.0",
+                "latency_sec_min": "0.8",
+                "latency_sec_max": "1.2",
+                "tokens_per_sec_avg": "50",
+                "successful_runs": "5",
+                "total_runs": "5",
+            },
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            index_path = tmp_path / "model_index.csv"
+            catalog_path = tmp_path / "current_free_models.json"
+
+            with open(index_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=list(index_rows[0].keys()))
+                writer.writeheader()
+                writer.writerows(index_rows)
+
+            catalog_path.write_text(
+                json.dumps({
+                    "catalog_id": "x",
+                    "models": [{"model_id": "live/now:free", "created": 1700000000}],
+                }),
+                encoding="utf-8",
+            )
+
+            with patch.object(analyze_mod, "MODEL_INDEX_FILE", index_path), \
+                 patch("analyze._load_catalog", return_value={"live/now:free": {"created": 1700000000}}):
+                entries = _leaderboard_entries(limit=10)
+
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["name"], "Live Now")
+
+    def test_pages_html_escapes_model_names(self):
+        import analyze as analyze_mod
+        from analyze import write_pages_leaderboard
+
+        evil = [{"rank": "1", "name": "<script>alert(1)</script>", "context": "1k",
+                 "latency": "1.0s", "range": "1.0s to 1.0s", "tps": "10",
+                 "success": "100%", "runs": "1", "released": "?", "status": "🟢"}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            docs = Path(tmp)
+            with patch.object(analyze_mod, "_leaderboard_entries", return_value=evil):
+                result = write_pages_leaderboard(docs_dir=docs)
+            html = (docs / "index.html").read_text(encoding="utf-8")
+
+        self.assertTrue(result["success"])
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
 
 
 if __name__ == "__main__":

@@ -62,27 +62,34 @@ BENCHMARK_CSV_COLUMNS = [
 
 INDEX_COLUMNS = [
     "model_id",
-    "canonical_family",
     "display_name",
+    "canonical_family",
     "context_length",
     "total_runs",
     "successful_runs",
     "failed_runs",
+    "infra_runs",
     "success_rate",
     "error_rate",
+    "availability",
     "latency_sec_avg",
     "latency_sec_median",
     "latency_sec_p95",
     "latency_sec_min",
     "latency_sec_max",
-    "total_tokens_avg",
+    "prompt_tokens_avg",
     "completion_tokens_avg",
+    "total_tokens_avg",
     "tokens_per_sec_avg",
     "cost_avg",
     "cost_total",
-    "last_seen",
     "first_seen",
+    "last_seen",
 ]
+
+# Infra / account failures — recorded, but excluded from model success_rate.
+INFRA_STATUSES = frozenset({"quota", "auth"})
+MODEL_FAILURE_STATUSES = frozenset({"error", "timeout"})
 
 
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
@@ -211,29 +218,10 @@ def append_jsonl(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
     line = json.dumps(record, ensure_ascii=False) + "\n"
-
-    fd, temp_path = tempfile.mkstemp(
-        dir=path.parent,
-        prefix=f".{path.name}.",
-        suffix=".tmp"
-    )
-
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(line)
-            f.flush()
-            os.fsync(f.fileno())
-
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(line)
-
-        os.unlink(temp_path)
-    except Exception:
-        try:
-            os.unlink(temp_path)
-        except OSError:
-            pass
-        raise
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(line)
+        f.flush()
+        os.fsync(f.fileno())
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -252,33 +240,45 @@ def read_jsonl(path: Path) -> list[dict]:
 
 
 def ensure_csv_header(path: Path, columns: list[str]) -> bool:
+    """Ensure CSV header exists. Never wipe existing rows on mismatch."""
     path = Path(path)
     if path.exists() and path.stat().st_size > 0:
         try:
             with open(path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.reader(f)
                 header = next(reader, None)
-                if header and header == columns:
-                    return False
-        except (csv.Error, IOError):
-            pass
+        except (csv.Error, IOError) as exc:
+            raise ValueError(f"Cannot read CSV header from {path}: {exc}") from exc
 
+        if header == columns:
+            return False
+        raise ValueError(
+            f"CSV header mismatch in {path}: got {header!r}, expected {list(columns)!r}. "
+            "Refusing to overwrite existing data."
+        )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=columns)
         writer.writeheader()
     return True
 
 
-def append_csv_row(path: Path, row: dict[str, Any]) -> None:
+def append_csv_row(
+    path: Path,
+    row: dict[str, Any],
+    columns: list[str] | None = None,
+) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    columns = list(row.keys())
-    ensure_csv_header(path, columns)
+    fieldnames = list(columns) if columns is not None else list(row.keys())
+    ensure_csv_header(path, fieldnames)
 
+    ordered = {col: row.get(col, "") for col in fieldnames}
     with open(path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=columns)
-        writer.writerow(row)
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writerow(ordered)
 
 
 def read_csv(path: Path) -> list[dict]:
@@ -296,6 +296,28 @@ def load_prompts() -> dict:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"version": "unknown", "prompts": [], "default_prompt_id": None}
+
+
+def sanitize_error_message(message: str, max_len: int = 200) -> str:
+    """Strip secrets / key URLs before persisting error text to public data."""
+    import re
+
+    text = message or ""
+    text = re.sub(
+        r"https?://openrouter\.ai/workspaces/[^\s\"']+/keys/[A-Za-z0-9_-]+",
+        "[redacted-key-url]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"sk-or-[A-Za-z0-9_-]+", "[redacted-key]", text)
+    text = re.sub(r"\b[a-f0-9]{32,}\b", "[redacted-hex]", text, flags=re.IGNORECASE)
+    return text[:max_len]
+
+
+def html_escape(value: Any) -> str:
+    import html
+
+    return html.escape("" if value is None else str(value), quote=True)
 
 
 ensure_csv = ensure_csv_header

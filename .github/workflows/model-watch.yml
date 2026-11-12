@@ -70,8 +70,11 @@ jobs:
                   lines = [l for l in f.read().splitlines() if l.strip()]
               for line in reversed(lines[:-1]):
                   entry = json.loads(line)
-                  if entry.get('action') == 'snapshot' and entry.get('catalog_id') != catalog_id:
-                      prev_ids = set(entry.get('model_ids', []))
+                  if entry.get('catalog_id') == catalog_id:
+                      continue
+                  ids = entry.get('model_ids') or []
+                  if ids:
+                      prev_ids = set(ids)
                       break
           curr_ids = set(m['model_id'] for m in data.get('models', []))
           new_count = len(curr_ids - prev_ids)

@@ -45,11 +45,20 @@ OPENROUTER_ROUTER_PATTERNS = [
 ALLOWED_INPUT_MODALITIES  = {"text"}
 ALLOWED_OUTPUT_MODALITIES = {"text"}
 
+# Chat completions need at least one of these when the API lists parameters.
+CHAT_PARAM_MARKERS = frozenset({
+    "max_tokens",
+    "max_completion_tokens",
+    "temperature",
+    "tools",
+    "response_format",
+})
+
 # Explicit keyword blocklist for model IDs that slip through
 BLOCKLIST_KEYWORDS = [
     "lyria", "imagen", "dall-e", "stable-diffusion", "sdxl",
-    "whisper", "tts", "speech", "audio", "music", "video",
-    "embed", "embedding", "rerank",
+    "whisper", "tts", "speech", "music",
+    "embed", "embedding", "rerank", "switchyard",
 ]
 
 LOG = get_logger("watch_models")
@@ -160,9 +169,16 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
     if "free" in model_id.lower() and "/" not in model_id:
         return False, "id contains 'free' without provider prefix"
 
+    model_id_lower = model_id.lower()
+
     for router_pattern in OPENROUTER_ROUTER_PATTERNS:
-        if model_id.lower() == router_pattern.lower():
+        if model_id_lower == router_pattern.lower():
             return False, f"model matches router pattern '{router_pattern}'"
+
+    # Catch provider routers / meta-routers (e.g. typesafe/jev-router)
+    id_tail = model_id_lower.rsplit("/", 1)[-1]
+    if id_tail == "router" or id_tail.endswith("-router") or id_tail.endswith("_router"):
+        return False, "model id looks like a router"
 
     if model.get("disabled", False):
         return False, "model is disabled"
@@ -185,11 +201,19 @@ def is_benchmarkable(model: dict) -> tuple[bool, str]:
         return False, f"non-text output modality: {non_text_outputs}"
 
     # --- Keyword blocklist (catches models missing modality metadata) ---
-    model_id_lower = model_id.lower()
     name_lower = (model.get("name") or "").lower()
     for keyword in BLOCKLIST_KEYWORDS:
         if keyword in model_id_lower or keyword in name_lower:
             return False, f"blocked keyword '{keyword}' in model id/name"
+
+    # --- Chat capability check ---
+    supported_parameters = model.get("supported_parameters")
+    if isinstance(supported_parameters, list):
+        if len(supported_parameters) == 0:
+            return False, "empty supported_parameters"
+        markers = {str(p).lower() for p in supported_parameters}
+        if not markers.intersection(CHAT_PARAM_MARKERS):
+            return False, "missing chat completion parameters"
 
     # --- Pricing check ---
     pricing = model.get("pricing", {})
@@ -264,7 +288,13 @@ def load_current_catalog() -> Optional[dict]:
     return load_json(CURRENT_MODELS_FILE)
 
 
-def save_current_catalog(models: list[dict], catalog_id: str) -> None:
+def save_current_catalog(
+    models: list[dict],
+    catalog_id: str,
+    *,
+    action: str = "snapshot",
+    changes: Optional[dict] = None,
+) -> None:
     timestamp = now_iso()
     normalized = [normalize_model(m) for m in models]
 
@@ -280,10 +310,12 @@ def save_current_catalog(models: list[dict], catalog_id: str) -> None:
     history_entry = {
         "catalog_id": catalog_id,
         "timestamp": timestamp,
-        "action": "snapshot",
+        "action": action,
         "total_models": len(normalized),
         "model_ids": sorted([m["model_id"] for m in normalized]),
     }
+    if changes is not None:
+        history_entry["changes"] = changes
     append_jsonl(HISTORY_FILE, history_entry)
 
 
@@ -346,17 +378,8 @@ def discover_models(force: bool = False) -> dict:
         }
 
     changes = detect_changes(old_catalog, free_models)
-
-    history_entry = {
-        "catalog_id": catalog_id,
-        "timestamp": now_iso(),
-        "action": "update" if old_catalog else "initial",
-        "changes": changes,
-        "total_models": len(free_models),
-    }
-    append_jsonl(HISTORY_FILE, history_entry)
-
-    save_current_catalog(free_models, catalog_id)
+    action = "update" if old_catalog else "initial"
+    save_current_catalog(free_models, catalog_id, action=action, changes=changes)
 
     LOG.info("Catalog saved: %s", catalog_id)
     if changes["has_changes"]:
