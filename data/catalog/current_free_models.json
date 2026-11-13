@@ -1,7 +1,7 @@
 {
-  "catalog_id": "7be25c444ed2",
-  "timestamp": "2026-11-12T19:23:25.856259+00:00",
-  "total_models": 14,
+  "catalog_id": "95784d730557",
+  "timestamp": "2026-11-13T03:59:23.362105+00:00",
+  "total_models": 15,
   "models": [
     {
       "model_id": "baidu/ernie-5.5-flash-preview:free",
@@ -49,7 +49,7 @@
       "canonical_family": "thinkingmachines",
       "context_length": 1048576,
       "created": 1794261847,
-      "description": "Inkling 2 Small is a multimodal mixture-of-experts reasoning model from Thinking Machines Lab, with 17B active parameters out of 594B total. It is the first model in the second Inkling...",
+      "description": "Inkling 2 Small is an open-weight multimodal mixture-of-experts reasoning model from Thinking Machines Lab, with 17B active parameters out of 594B total. It is the first model in the second...",
       "pricing": {
         "prompt": "0",
         "completion": "0"
@@ -124,6 +124,56 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      }
+    },
+    {
+      "model_id": "particle-ai/particle-1:free",
+      "display_name": "Particle AI: Particle-1 (free)",
+      "canonical_family": "particle-ai",
+      "context_length": 1048576,
+      "created": 1793207893,
+      "description": "Particle-1 is a token-efficient agentic coding model from Particle AI, post-trained on DeepSeek V4.1 Flash. It is suited for software engineering work such as terminal workflows, codebase changes, and data...",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logprobs",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "architecture": {
+        "modality": "text+image->text",
+        "input_modalities": [
+          "text",
+          "image"
         ],
         "output_modalities": [
           "text"
