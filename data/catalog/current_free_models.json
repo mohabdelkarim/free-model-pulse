@@ -1,7 +1,7 @@
 {
-  "catalog_id": "95784d730557",
-  "timestamp": "2026-11-13T03:59:23.362105+00:00",
-  "total_models": 15,
+  "catalog_id": "5ee26de6c015",
+  "timestamp": "2026-11-13T19:00:27.206112+00:00",
+  "total_models": 13,
   "models": [
     {
       "model_id": "baidu/ernie-5.5-flash-preview:free",
@@ -266,50 +266,6 @@
       }
     },
     {
-      "model_id": "apodex/apodex-1.1-mini:free",
-      "display_name": "Apodex: Apodex 1.1 Mini (free)",
-      "canonical_family": "apodex",
-      "context_length": 262144,
-      "created": 1790875335,
-      "description": "Apodex 1.1 Mini is a reasoning-first model from Apodex, built for complex, long-horizon research and forecasting tasks. It works directly with files, data, code, and tools to produce verifiable results,...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 262144,
-        "max_completion_tokens": 235929,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
       "model_id": "dots-studio/dots-3-note-preview:free",
       "display_name": "Dots Studio: Dots3-Note Preview (free)",
       "canonical_family": "dots-studio",
@@ -341,55 +297,6 @@
         "input_modalities": [
           "text",
           "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "liquid/lfm-2.5-2.6b:free",
-      "display_name": "LiquidAI: LFM2.5-2.6B (free)",
-      "canonical_family": "liquid",
-      "context_length": 65536,
-      "created": 1786470519,
-      "description": "LFM2.5-2.6B is a compact reasoning model from Liquid AI. It is suited for agent workflows, data extraction, RAG, and long-context processing. Liquid advises against using it for agentic coding or...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 65536,
-        "max_completion_tokens": 8192,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "logprobs",
-        "max_completion_tokens",
-        "max_tokens",
-        "min_p",
-        "presence_penalty",
-        "reasoning",
-        "repetition_penalty",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_logprobs",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
         ],
         "output_modalities": [
           "text"
