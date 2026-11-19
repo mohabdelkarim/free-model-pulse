@@ -1,7 +1,7 @@
 {
-  "catalog_id": "c422056196db",
-  "timestamp": "2026-11-16T03:42:52.303520+00:00",
-  "total_models": 14,
+  "catalog_id": "2884cf65e1bf",
+  "timestamp": "2026-11-19T19:48:32.111259+00:00",
+  "total_models": 13,
   "models": [
     {
       "model_id": "inclusionai/ling-3.2-flash:free",
@@ -80,46 +80,6 @@
         "modality": "text->text",
         "input_modalities": [
           "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "thinkingmachines/inkling-2-small:free",
-      "display_name": "Thinking Machines: Inkling 2 Small (free)",
-      "canonical_family": "thinkingmachines",
-      "context_length": 1048576,
-      "created": 1794261847,
-      "description": "Inkling 2 Small is an open-weight multimodal mixture-of-experts reasoning model from Thinking Machines Lab, with 17B active parameters out of 594B total. It is the first model in the second...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 131072,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "reasoning_effort",
-        "seed",
-        "stop",
-        "temperature",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
         ],
         "output_modalities": [
           "text"
