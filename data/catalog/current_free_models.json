@@ -1,7 +1,7 @@
 {
-  "catalog_id": "2884cf65e1bf",
-  "timestamp": "2026-11-19T19:48:32.111259+00:00",
-  "total_models": 13,
+  "catalog_id": "32f865687eae",
+  "timestamp": "2026-11-20T04:47:41.381847+00:00",
+  "total_models": 12,
   "models": [
     {
       "model_id": "inclusionai/ling-3.2-flash:free",
@@ -345,48 +345,6 @@
           "text"
         ],
         "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "cohere/north-mini-code:free",
-      "display_name": "Cohere: North Mini Code (free)",
-      "canonical_family": "cohere",
-      "context_length": 256000,
-      "created": 1781723748,
-      "description": "North Mini Code is Cohere's first agentic coding model and the debut of its North family. A sparse mixture-of-experts model with 30B total parameters and 3B active, it is optimized...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 256000,
-        "max_completion_tokens": 64000,
-        "is_moderated": true
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "seed",
-        "stop",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text->text",
-        "input_modalities": [
-          "text"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Cohere",
         "instruct_type": null
       }
     },
