@@ -1,7 +1,7 @@
 {
-  "catalog_id": "32f865687eae",
-  "timestamp": "2026-11-20T04:47:41.381847+00:00",
-  "total_models": 12,
+  "catalog_id": "4fe01d74e68f",
+  "timestamp": "2026-11-24T21:47:43.041932+00:00",
+  "total_models": 11,
   "models": [
     {
       "model_id": "inclusionai/ling-3.2-flash:free",
@@ -262,46 +262,6 @@
           "text",
           "image",
           "video"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
-    {
-      "model_id": "dots-studio/dots-3-note-preview:free",
-      "display_name": "Dots Studio: Dots3-Note Preview (free)",
-      "canonical_family": "dots-studio",
-      "context_length": 512000,
-      "created": 1786680361,
-      "description": "Dots3-Note Preview is an open-weight mixture-of-experts model from Dots Studio, with 16B active parameters out of 280B total. It is the lightest model in the Dots 3 family and is...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 512000,
-        "max_completion_tokens": 460800,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "include_reasoning",
-        "max_tokens",
-        "reasoning",
-        "response_format",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
         ],
         "output_modalities": [
           "text"
