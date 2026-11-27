@@ -1,53 +1,8 @@
 {
-  "catalog_id": "4fe01d74e68f",
-  "timestamp": "2026-11-24T21:47:43.041932+00:00",
-  "total_models": 11,
+  "catalog_id": "57c35443a8b2",
+  "timestamp": "2026-11-27T20:31:08.478154+00:00",
+  "total_models": 10,
   "models": [
-    {
-      "model_id": "inclusionai/ling-3.2-flash:free",
-      "display_name": "inclusionAI: Ling 3.2 Flash (free)",
-      "canonical_family": "inclusionai",
-      "context_length": 1048576,
-      "created": 1794591958,
-      "description": "Ling 3.2 Flash is a hybrid reasoning model from inclusionAI that accepts text and image input, with a 1M-token context window and up to 200 images per request. Thinking can...",
-      "pricing": {
-        "prompt": "0",
-        "completion": "0"
-      },
-      "top_provider": {
-        "context_length": 1048576,
-        "max_completion_tokens": 262144,
-        "is_moderated": false
-      },
-      "supported_parameters": [
-        "frequency_penalty",
-        "include_reasoning",
-        "max_tokens",
-        "presence_penalty",
-        "reasoning",
-        "response_format",
-        "seed",
-        "stop",
-        "structured_outputs",
-        "temperature",
-        "tool_choice",
-        "tools",
-        "top_k",
-        "top_p"
-      ],
-      "architecture": {
-        "modality": "text+image->text",
-        "input_modalities": [
-          "text",
-          "image"
-        ],
-        "output_modalities": [
-          "text"
-        ],
-        "tokenizer": "Other",
-        "instruct_type": null
-      }
-    },
     {
       "model_id": "baidu/ernie-5.5-flash-preview:free",
       "display_name": "Baidu: ERNIE-5.5-Flash-Preview (free)",
@@ -150,7 +105,7 @@
       },
       "top_provider": {
         "context_length": 1048576,
-        "max_completion_tokens": 131072,
+        "max_completion_tokens": 943718,
         "is_moderated": false
       },
       "supported_parameters": [
